@@ -1,3 +1,13 @@
+---
+title: HCAI Project 1
+emoji: 🌸
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # HCAI project hub
 
 Coursework for Human-Centric Artificial Intelligence, SoSe 2026, TUHH.

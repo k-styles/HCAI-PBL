@@ -29,13 +29,15 @@ SECRET_KEY = os.environ.get(
 # On by default so `runserver` needs no setup; the host sets it to "false".
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() != "false"
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
-CSRF_TRUSTED_ORIGINS = []
+# A leading dot matches any subdomain, so the two hosts this is deployed to
+# need no per-environment configuration. DJANGO_ALLOWED_HOSTS adds any other.
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".onrender.com", ".hf.space"]
+CSRF_TRUSTED_ORIGINS = ["https://*.onrender.com", "https://*.hf.space"]
 
-_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-if _host:
-    ALLOWED_HOSTS.append(_host)
-    CSRF_TRUSTED_ORIGINS.append(f"https://{_host}")
+for _extra in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(","):
+    if _extra.strip():
+        ALLOWED_HOSTS.append(_extra.strip())
+        CSRF_TRUSTED_ORIGINS.append(f"https://{_extra.strip().lstrip('.')}")
 
 # Makes the `debug` template variable true for local requests, which is what
 # gates the development-only pages in project1.
