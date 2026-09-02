@@ -4,7 +4,10 @@ services:
     runtime: python
     plan: free
     buildCommand: "./build.sh"
-    startCommand: "gunicorn pbl.wsgi:application"
+    # Render routes to $PORT; bare gunicorn would listen on 8000 and hang.
+    # One worker keeps the resident set inside the 512 MB free tier, since
+    # pandas, scikit-learn and matplotlib are all resident once imported.
+    startCommand: "gunicorn pbl.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120"
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true

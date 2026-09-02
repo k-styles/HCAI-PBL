@@ -22,6 +22,7 @@ RUN mkdir -p media/project1 && \
     useradd -m app && chown -R app:app /app
 USER app
 
+ENV PORT=7860
 EXPOSE 7860
 CMD python manage.py migrate --no-input && \
-    gunicorn pbl.wsgi:application --bind 0.0.0.0:7860 --workers 2 --timeout 120
+    gunicorn pbl.wsgi:application --bind "0.0.0.0:$PORT" --workers 1 --timeout 120
