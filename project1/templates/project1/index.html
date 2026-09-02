@@ -1,0 +1,75 @@
+{% extends 'project1/layout.html' %}
+{% load glossary %}
+
+{% block heading %}Supervised learning, step by step{% endblock %}
+{% block lede %}Load a table, look at what is in it, then decide how much of the model
+choice you want to make yourself.{% endblock %}
+
+{% block panel %}
+<div class="p1-split-wide">
+    <div class="p1-card">
+        <h2>Load a dataset</h2>
+        <p class="p1-sub">CSV, header row first, target in the last column.</p>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="p1-field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}<div class="p1-help">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="p1-error">{{ error }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+            <button type="submit" class="p1-btn">Load</button>
+        </form>
+    </div>
+
+    <div>
+        {% if dataset %}
+            <div class="p1-card">
+                <h2>{{ name }}</h2>
+                <p class="p1-sub">Already loaded in this session.</p>
+
+                <div class="p1-facts">
+                    <div class="p1-fact"><div class="k">Rows</div><div class="v">{{ dataset.n_rows }}</div></div>
+                    <div class="p1-fact"><div class="k">Features</div><div class="v">{{ dataset.features|length }}</div></div>
+                    <div class="p1-fact"><div class="k">Target{% info "target" %}</div><div class="v small">{{ dataset.target }}</div></div>
+                    <div class="p1-fact"><div class="k">Read as{% info "classification-regression" %}</div><div class="v small">{{ dataset.kind }}</div></div>
+                </div>
+
+                {% if dataset.notes %}
+                    <div class="p1-note warn">
+                        <p><strong>Changes made while reading the file</strong> &mdash; columns
+                        that could not be used as {% term "feature" "features" %}.</p>
+                        {% for note in dataset.notes %}<p>{{ note }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="p1-actions">
+                    <a href="{% url 'project1:visualize' %}"><button type="button" class="p1-btn">Look at the data</button></a>
+                    <a href="{% url 'project1:reset' %}"><button type="button" class="p1-btn ghost">Forget it</button></a>
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="p1-card">
+            <h2>What this app does</h2>
+            <p class="p1-sub">The pipeline from lecture 1, with the decisions left visible.</p>
+            <p>Choose a {% term "model" %}, {% term "test-set" "split the rows" %}, train it once
+            for every value of its {% term "hyperparameter" %}, and
+            {% term "accuracy" "score the results" %}. The interesting question is not how to run
+            that loop &mdash; it is who gets to make each of those four choices.</p>
+            <p>Here the split, the {% term "cross-validation" "fold count" %}, the values to try,
+            the score and the {% term "one-se-rule" "selection rule" %} are all yours. The
+            mechanical part &mdash; building balanced folds, running the sweep, keeping the
+            {% term "test-set" "test set" %} out of the selection &mdash; is automatic. There is
+            also {% term "automl" "a button that makes every one of those choices for you" %}, so
+            you can see what gets decided in your name.</p>
+            <p>Never done this before? Every underlined word on any page opens a short, plain
+            explanation written for someone who has not met it &mdash; no formulas without words
+            around them.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

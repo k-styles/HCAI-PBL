@@ -172,3 +172,12 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# macOS
+.DS_Store
+
+# Collected by build.sh on deploy
+/assets/
+
+# Uploaded datasets and generated figures
+/media/project1/

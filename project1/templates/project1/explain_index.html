@@ -1,0 +1,27 @@
+{% extends 'project1/layout.html' %}
+
+{% block heading %}Plain answers{% endblock %}
+{% block lede %}Every technical word this app uses, explained without assuming you have met
+it before.{% endblock %}
+
+{% block panel %}
+<div class="p1-note">
+    <p>You should not have to already know what something means in order to choose it.
+    Anywhere a term appears with a small <span class="p1-info-static">i</span> beside it,
+    that link lands on the page below that explains it.</p>
+</div>
+
+{% for group, topics in groups.items %}
+    <div class="p1-card">
+        <h2>{{ group }}</h2>
+        <div class="p1-glossary">
+            {% for topic in topics %}
+                <a class="p1-entry" href="{% url 'project1:explain' topic.slug %}">
+                    <span class="p1-entry-title">{{ topic.title }}</span>
+                    <span class="p1-entry-short">{{ topic.short }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}

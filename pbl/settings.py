@@ -20,13 +20,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-ulscw9yso6q+hyj(2s-3ubvd9=krd-4p!axal6962&_meb9w&o"
+# Read from the environment when deployed; the fallback is for local work only
+# and is fine to keep in the repository because it is never used in the open.
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-ulscw9yso6q+hyj(2s-3ubvd9=krd-4p!axal6962&_meb9w&o")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# On by default so `runserver` needs no setup; the host sets it to "false".
+DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() != "false"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+CSRF_TRUSTED_ORIGINS = []
+
+_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if _host:
+    ALLOWED_HOSTS.append(_host)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_host}")
+
+# Makes the `debug` template variable true for local requests, which is what
+# gates the development-only pages in project1.
+INTERNAL_IPS = ["127.0.0.1", "::1"]
 
 
 # Application definition
@@ -40,10 +53,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "home", 
     "demos",
+    "project1",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -132,6 +147,11 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'assets')
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

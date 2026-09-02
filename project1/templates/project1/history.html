@@ -1,0 +1,48 @@
+{% extends 'project1/layout.html' %}
+{% load glossary %}
+
+{% block heading %}Previous runs{% endblock %}
+{% block lede %}Every sweep is recorded, so two settings can be compared after the fact
+rather than from memory.{% endblock %}
+
+{% block panel %}
+<div class="p1-card">
+    <h2>Run log</h2>
+    <p class="p1-sub">Newest first. Rows marked automatic were produced without asking you anything.</p>
+
+    {% if runs %}
+        <div class="p1-scroll">
+            <table class="p1-table">
+                <thead>
+                    <tr>
+                        <th>When</th><th>Dataset</th><th>Model</th><th>Setting</th>
+                        <th>Rule{% info "one-se-rule" %}</th><th>Score</th>
+                        <th class="num">CV{% info "cross-validation" %}</th><th class="num">Test{% info "test-set" %}</th>
+                        <th class="num">Test %</th><th class="num">Folds</th><th class="num">Seed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                        <tr>
+                            <td>{{ run.created|date:"d M, H:i" }}</td>
+                            <td>{{ run.dataset }}</td>
+                            <td>{{ run.algorithm }}{% if run.automated %}<span class="p1-tag peak">automatic</span>{% endif %}</td>
+                            <td>{{ run.param }} = {{ run.chosen|floatformat:"-4" }}
+                                {% if run.chosen != run.peak %}<span class="p1-tag">peak was {{ run.peak|floatformat:"-4" }}</span>{% endif %}</td>
+                            <td>{% if run.rule == 'one_se' %}1 SE{% else %}best{% endif %}</td>
+                            <td>{{ run.score_name }}</td>
+                            <td class="num">{{ run.cv_score|floatformat:"-4" }}</td>
+                            <td class="num">{{ run.test_score|floatformat:"-4" }}</td>
+                            <td class="num">{{ run.test_fraction|floatformat:2 }}</td>
+                            <td class="num">{{ run.n_folds }}</td>
+                            <td class="num">{{ run.seed }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="p1-empty">Nothing yet. <a href="{% url 'project1:train' %}">Train something.</a></p>
+    {% endif %}
+</div>
+{% endblock %}

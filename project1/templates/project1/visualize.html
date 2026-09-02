@@ -1,0 +1,221 @@
+{% extends 'project1/layout.html' %}
+{% load glossary %}
+
+{% block heading %}{{ name }}{% endblock %}
+{% block lede %}Before choosing a model, see what the columns actually look like.{% endblock %}
+
+{% block panel %}
+<div class="p1-facts">
+    <div class="p1-fact"><div class="k">Rows</div><div class="v">{{ dataset.n_rows }}</div></div>
+    <div class="p1-fact"><div class="k">Features{% info "feature" %}</div><div class="v">{{ dataset.features|length }}</div></div>
+    <div class="p1-fact"><div class="k">Predicting{% info "target" %}</div><div class="v small">{{ dataset.target }}</div></div>
+    <div class="p1-fact"><div class="k">Treated as{% info "classification-regression" %}</div><div class="v small">{{ dataset.kind }}</div></div>
+</div>
+
+<div class="p1-note">
+    <p>The {% term "target" "target column" %} <strong>{{ dataset.target }}</strong> was read as a
+    <strong>{% term "classification-regression" dataset.detected_kind %}</strong> problem
+    {% if dataset.kind != dataset.detected_kind %}
+        but you asked for it to be treated as <strong>{{ dataset.kind }}</strong>.
+    {% else %}
+        &mdash; text labels, or few enough distinct whole numbers relative to
+        {{ dataset.n_rows }} rows to be classes rather than quantities.
+    {% endif %}
+    Underlined words anywhere on this page open a plain explanation.</p>
+
+    <form method="post" action="{% url 'project1:retype' %}" class="p1-switch">
+        {% csrf_token %}
+        <span class="p1-switch-label">Read it as</span>
+        <button type="submit" name="kind" value=""
+                class="p1-chip {% if not note.kind %}on{% endif %}">whatever fits</button>
+        <button type="submit" name="kind" value="classification"
+                class="p1-chip {% if note.kind == 'classification' %}on{% endif %}">classification</button>
+        <button type="submit" name="kind" value="regression"
+                class="p1-chip {% if note.kind == 'regression' %}on{% endif %}">regression</button>
+    </form>
+</div>
+
+{% if dataset.notes %}
+    <div class="p1-note warn">
+        <p><strong>Columns and rows dropped while reading</strong> &mdash; these could not be used
+        as {% term "feature" "features" %}.</p>
+        {% for change in dataset.notes %}<p>{{ change }}</p>{% endfor %}
+    </div>
+{% endif %}
+
+<div class="p1-card">
+    <h2>What was read</h2>
+    <p class="p1-sub">The first {{ preview.shown }} rows as the app understands them,
+        after any columns above were dropped. If this does not match your file, the
+        rest of the page is answering the wrong question.</p>
+    <div class="p1-scroll">
+        <table class="p1-table">
+            <thead><tr>{% for c in preview.columns %}<th class="num">{{ c }}</th>{% endfor %}</tr></thead>
+            <tbody>
+                {% for row in preview.rows %}
+                    <tr>{% for cell in row %}<td class="num">{{ cell }}</td>{% endfor %}</tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="p1-card">
+    <h2>Two features against each other</h2>
+    <p class="p1-sub">{% if dataset.kind == 'classification' %}Colour is the class.
+        Look for a pair where the colours separate &mdash; those are the
+        {% term "feature" "features" %} a {% term "model" %} can use.
+        {% else %}Put <strong>{{ dataset.target }}</strong> on an axis to see a feature
+        drive the outcome directly, or pick two features and let colour carry the
+        target.{% endif %}</p>
+
+    <form method="get" class="p1-pair" style="margin-bottom:18px;">
+        <div class="p1-field">
+            <label for="x">Horizontal</label>
+            <select name="x" id="x" onchange="this.form.submit()">
+                {% for f in features %}<option value="{{ f }}" {% if f == x_name %}selected{% endif %}>{{ f }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="p1-field">
+            <label for="y">Vertical</label>
+            <select name="y" id="y" onchange="this.form.submit()">
+                {% for f in features %}<option value="{{ f }}" {% if f == y_name %}selected{% endif %}>{{ f }}</option>{% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <figure class="p1-figure">
+        <img src="{{ scatter_url }}?v={{ stamp }}" alt="Scatter plot of {{ y_name }} against {{ x_name }}">
+    </figure>
+</div>
+
+<div class="p1-split-wide">
+    <div class="p1-card">
+        <h2>Which features carry the answer{% info "feature-ranking" %}</h2>
+        <p class="p1-sub">Ranked by {% term "feature-ranking" relevance.measure %}.</p>
+        <table class="p1-table">
+            <thead><tr><th>Feature</th><th class="num">Score</th></tr></thead>
+            <tbody>
+                {% for s in relevance.scores %}
+                    <tr>
+                        <td>{{ s.name }}</td>
+                        <td class="num">{{ s.score|floatformat:3 }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="p1-note" style="margin-top:16px;">
+            <p>Each score looks at one {% term "feature" %} on its own, so two features that are
+            useless separately and decisive together will both rank low. Use this to
+            decide what to plot, not what to throw away.</p>
+        </div>
+    </div>
+
+    <div class="p1-card">
+        <h2>Every pair at once</h2>
+        <p class="p1-sub">The scatter above answers whether two {% term "feature" "features" %}
+            separate the {% term "target" %}. This answers which two you should have picked.{% if pair_capped %}
+            Limited to the {{ pair_names|length }} highest ranked of
+            {{ features|length }} columns.{% endif %}</p>
+        <figure class="p1-figure"><img src="{{ pair_url }}?v={{ stamp }}" alt="Pairwise feature grid"></figure>
+    </div>
+</div>
+
+{% if pca_url %}
+    <div class="p1-card">
+        <h2>All features at once{% info "projection" %}</h2>
+        <p class="p1-sub">Every column {% term "scaling" "standardised" %} and
+            {% term "projection" "projected onto the two directions the data varies in most" %}.
+            If the groups separate here but not in any single pair above, the information is
+            spread across {% term "feature" "features" %} rather than sitting in one of them
+            &mdash; which is a reason to prefer a {% term "model" %} that combines them.</p>
+        <figure class="p1-figure">
+            <img src="{{ pca_url }}?v={{ stamp }}" alt="Two-dimensional projection">
+            <figcaption>Variance captured by the leading components:
+                {% for s in pca_share %}{{ s }}%{% if not forloop.last %}, {% endif %}{% endfor %}.</figcaption>
+        </figure>
+    </div>
+{% endif %}
+
+<div class="p1-split">
+    <div class="p1-card">
+        <h2>Distribution of each feature</h2>
+        <p class="p1-sub">{% if dataset.kind == 'classification' %}Where the classes overlap,
+            that {% term "feature" %} alone cannot tell them apart.{% else %}Skew and outliers show
+            up here, which matters when choosing between {% term "mse" "squared" %} and
+            {% term "mae" "absolute" %} error.{% endif %}</p>
+        <figure class="p1-figure"><img src="{{ dist_url }}?v={{ stamp }}" alt="Feature histograms"></figure>
+    </div>
+
+    <div class="p1-card">
+        <h2>How much the features repeat each other{% info "correlation" %}</h2>
+        <p class="p1-sub">Strongly {% term "correlation" "correlated" %} features carry the same
+            information twice, which is what the {% term "hyperparameter-alpha" "penalty term" %}
+            in {% term "ridge" "ridge regression" %} exists to handle.</p>
+        <figure class="p1-figure"><img src="{{ corr_url }}?v={{ stamp }}" alt="Correlation heatmap"></figure>
+    </div>
+</div>
+
+<div class="p1-split">
+    <div class="p1-card">
+        <h2>Feature summary{% info "scaling" %}</h2>
+        <p class="p1-sub">Units differ, which is why the distance-based models are given
+            {% term "scaling" "rescaled inputs" %}.</p>
+        <div class="p1-scroll">
+            <table class="p1-table">
+                <thead><tr><th>Feature</th><th class="num">Mean</th><th class="num">Std</th>
+                    <th class="num">Min</th><th class="num">Median</th><th class="num">Max</th></tr></thead>
+                <tbody>
+                    {% for row in summary %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td class="num">{{ row.mean|floatformat:3 }}</td>
+                            <td class="num">{{ row.std|floatformat:3 }}</td>
+                            <td class="num">{{ row.min|floatformat:3 }}</td>
+                            <td class="num">{{ row.median|floatformat:3 }}</td>
+                            <td class="num">{{ row.max|floatformat:3 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="p1-card">
+        {% if counts %}
+            <h2>Class balance{% info "class-balance" %}</h2>
+            <p class="p1-sub">Both the {% term "test-set" "test split" %} and every
+                {% term "cross-validation" "fold" %} keep {% term "class-balance" "these proportions" %}.</p>
+            <table class="p1-table">
+                <thead><tr><th>{{ dataset.target }}</th><th class="num">Rows</th><th class="num">Share</th></tr></thead>
+                <tbody>
+                    {% for c in counts %}
+                        <tr>
+                            <td>{{ c.label }}</td>
+                            <td class="num">{{ c.n }}</td>
+                            <td class="num">{% widthratio c.n dataset.n_rows 100 %}%</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <h2>Target</h2>
+            <p class="p1-sub">The continuous value the {% term "model" %} has to predict &mdash;
+                this is a {% term "classification-regression" "regression" %} problem.</p>
+            <table class="p1-table">
+                <thead><tr><th>{{ dataset.target }}</th><th class="num">Value</th></tr></thead>
+                <tbody>
+                    <tr><td>Mean</td><td class="num">{{ target_stats.mean|floatformat:3 }}</td></tr>
+                    <tr><td>Std</td><td class="num">{{ target_stats.std|floatformat:3 }}</td></tr>
+                    <tr><td>Min</td><td class="num">{{ target_stats.min|floatformat:3 }}</td></tr>
+                    <tr><td>Max</td><td class="num">{{ target_stats.max|floatformat:3 }}</td></tr>
+                </tbody>
+            </table>
+        {% endif %}
+
+        <div class="p1-actions" style="margin-top:18px;">
+            <a href="{% url 'project1:train' %}"><button type="button" class="p1-btn">Train a model &rarr;</button></a>
+        </div>
+    </div>
+</div>
+{% endblock %}

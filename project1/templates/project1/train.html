@@ -1,0 +1,324 @@
+{% extends 'project1/layout.html' %}
+{% load static %}
+{% load glossary %}
+
+{% block heading %}Train a model{% endblock %}
+{% block lede %}Choose a model, split the rows, sweep the hyperparameter, score the result.{% endblock %}
+
+{% block panel %}
+<div class="p1-note">
+    <p><strong>Yours:</strong> the {% term "model" %}, the
+    {% term "hyperparameter" "values to try" %}, how much data is
+    {% term "test-set" "held back" %}, how many {% term "cross-validation" "folds" %}, the
+    {% term "accuracy" "score" %}, and {% term "one-se-rule" "how ties are broken" %}.</p>
+    <p><strong>Automatic:</strong> building folds that keep the
+    {% term "class-balance" "class balance" %}, fitting every candidate, and keeping the
+    {% term "test-set" "test rows" %} out of the selection so the final number stays honest.
+    Any underlined word here opens a plain explanation.</p>
+</div>
+
+<div class="p1-split-wide">
+    <div class="p1-card">
+        <h2>Your choices</h2>
+        <p class="p1-sub">{{ name }} &middot; {{ dataset.n_rows }} rows &middot; {{ dataset.kind }}</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="p1-field">
+                <div class="p1-label-row">{{ form.algorithm.label_tag }}<a class="p1-info" id="model-info" href="#">i</a></div>
+                {{ form.algorithm }}
+                <div class="p1-help" id="algo-help"></div>
+            </div>
+
+            <div class="p1-field">
+                <div class="p1-label-row">{{ form.grid.label_tag }}<a class="p1-info" id="param-info" href="#">i</a></div>
+                {{ form.grid }}
+                <div class="p1-help"><span id="grid-help"></span>
+                    Each value trains a separate model &mdash; these are
+                    {% term "hyperparameter" "settings you pick, not things the model learns" %}.</div>
+                {% for error in form.grid.errors %}<div class="p1-error">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="p1-field">
+                <div class="p1-label-row">{{ form.score.label_tag }}<a class="p1-info" id="score-info" href="#">i</a></div>
+                {{ form.score }}
+                <div class="p1-help">All of them get reported; this one decides the winner.
+                    {% term "accuracy" "Accuracy" %} is simple but flatters a model that ignores
+                    a rare class; {% term "macro-f1" "macro F1" %} does not.</div>
+            </div>
+
+            <div class="p1-field">
+                <div class="p1-label-row">{{ form.rule.label_tag }}{% info "one-se-rule" %}</div>{{ form.rule }}
+                <div class="p1-help">Five folds give five noisy numbers. The first option refuses
+                    to read a difference smaller than their
+                    {% term "standard-error" "standard error" %}.</div>
+            </div>
+
+            <div class="p1-pair">
+                <div class="p1-field"><div class="p1-label-row">{{ form.test_percent.label_tag }}{% info "test-set" %}</div>{{ form.test_percent }}
+                    {% for e in form.test_percent.errors %}<div class="p1-error">{{ e }}</div>{% endfor %}</div>
+                <div class="p1-field"><div class="p1-label-row">{{ form.n_folds.label_tag }}{% info "cross-validation" %}</div>{{ form.n_folds }}
+                    {% for e in form.n_folds.errors %}<div class="p1-error">{{ e }}</div>{% endfor %}</div>
+            </div>
+
+            <div class="p1-field"><div class="p1-label-row">{{ form.seed.label_tag }}{% info "seed" %}</div>{{ form.seed }}
+                <div class="p1-help">Change it to see how much of the result was
+                    {% term "seed" "the shuffle" %}.</div></div>
+
+            <div class="p1-actions">
+                <button type="submit" class="p1-btn">Run the sweep</button>
+                <button type="submit" name="automl" value="1" class="p1-btn ghost">Decide for me</button>
+                {% info "automl" %}
+            </div>
+        </form>
+    </div>
+
+    <div>
+        {% if not result %}
+            <div class="p1-card">
+                <h2>Nothing trained yet</h2>
+                <p class="p1-sub">Pick a model on the left, or let the app pick.</p>
+                <p>The two buttons do the same arithmetic. The difference is only who answered the
+                questions &mdash; and {% term "automl" "the second one" %} does not tell you it
+                asked them.</p>
+                <p>New to this? Start with a {% term "tree" "decision tree" %}: it is the one model
+                here whose reasoning you can read back afterwards. Leave every other setting alone
+                the first time.</p>
+            </div>
+        {% else %}
+            {% if automated %}
+                <div class="p1-note warn">
+                    <p><strong>Nothing was asked of you.</strong> The model, the values swept, the
+                    25% test split, the five folds, the score and the tie-breaking rule were all
+                    chosen by the app. It produced an answer and no questions.</p>
+                    <p>The table at the bottom lists what it tried and discarded. Read it before
+                    accepting the result: a {% term "model" %} further down may be easier to
+                    explain, cheaper to run, or wrong in a way that matters less to you, for a
+                    difference in {% term "accuracy" "score" %} too small to be worth the trade.</p>
+                </div>
+            {% endif %}
+
+            <div class="p1-headline">
+                <div>
+                    <div class="cap">Chosen</div>
+                    <div class="big">{{ result.algo.param }} = {{ result.winner.value|floatformat:"-4" }}</div>
+                    <div class="unit">{{ result.algo.label }}</div>
+                </div>
+                {% for s in result.test_scores %}
+                    <div>
+                        <div class="cap">{{ s.label }}{% if s.primary %} (selected on){% endif %}</div>
+                        <div class="big">{{ s.value|floatformat:"-4" }}</div>
+                        <div class="unit">on {{ result.n_test }} held-out rows</div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if result.dropped %}
+                <div class="p1-note warn">
+                    <p>Skipped {{ result.algo.param }} =
+                    {% for v in result.dropped %}{{ v|floatformat:"-4" }}{% if not forloop.last %}, {% endif %}{% endfor %}:
+                    more {% term "hyperparameter-k" "neighbours" %} than a
+                    {% term "cross-validation" "fold" %} has rows to offer.</p>
+                </div>
+            {% endif %}
+
+            {% if result.overruled %}
+                <div class="p1-note calm">
+                    <p>The best mean was at <strong>{{ result.algo.param }} =
+                    {{ result.peak.value|floatformat:"-4" }}</strong>, but
+                    {{ result.winner.value|floatformat:"-4" }} is within one
+                    {% term "standard-error" "standard error" %} of it and gives the
+                    {% if result.algo.simpler == 'low' %}smaller{% else %}more heavily
+                    smoothed{% endif %} model, so {% term "one-se-rule" "that is what was kept" %}.</p>
+                </div>
+            {% endif %}
+
+            <div class="p1-card">
+                <h2>The sweep{% info "validation-curve" %}</h2>
+                <p class="p1-sub">{{ result.n_folds }}-fold
+                    {% term "cross-validation" %} inside the {{ result.n_train }} training rows.
+                    The {% term "test-set" "test rows" %} were not involved.</p>
+                <figure class="p1-figure">
+                    <img src="{{ curve_url }}?v={{ stamp }}" alt="Validation curve">
+                    <figcaption>Where the dashed line pulls away from the solid one, the model is
+                        {% term "overfitting" "memorising rows rather than learning the pattern" %}.</figcaption>
+                </figure>
+
+                <div class="p1-scroll">
+                    <table class="p1-table">
+                        <thead>
+                            <tr>
+                                <th>{{ result.algo.param }}</th>
+                                <th class="num">CV {{ result.score.label|lower }}{% info "cross-validation" %}</th>
+                                <th class="num">± SE{% info "standard-error" %}</th>
+                                <th class="num">On training rows{% info "overfitting" %}</th>
+                                <th>Per fold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.rows %}
+                                <tr class="{% if row.chosen %}picked{% endif %}">
+                                    <td>{{ row.value|floatformat:"-4" }}
+                                        {% if row.chosen %}<span class="p1-tag win">kept</span>{% endif %}
+                                        {% if row.best_mean and not row.chosen %}<span class="p1-tag peak">best mean</span>{% endif %}
+                                        {% if row.within_one_se and not row.chosen and not row.best_mean %}<span class="p1-tag">tied</span>{% endif %}
+                                    </td>
+                                    <td class="num">{{ row.mean|floatformat:4 }}</td>
+                                    <td class="num">{{ row.se|floatformat:4 }}</td>
+                                    <td class="num">{{ row.train_mean|floatformat:4 }}</td>
+                                    <td class="num">{{ row.fold_scores|join:", " }}</td>
+                                </tr>
+                                {% if row.errors %}
+                                    <tr class="p1-why">
+                                        <td colspan="5">
+                                            <details>
+                                                <summary>What {{ result.algo.param }} =
+                                                    {{ row.value|floatformat:"-4" }} got wrong</summary>
+                                                <div class="p1-why-body">
+                                                {% if row.errors.kind == 'classes' %}
+                                                    <table class="p1-table p1-confusion">
+                                                        <thead><tr><th>True \ predicted</th>
+                                                            {% for l in row.errors.labels %}<th class="num">{{ l }}</th>{% endfor %}
+                                                            <th class="num">Right</th></tr></thead>
+                                                        <tbody>
+                                                            {% for e in row.errors.rows %}
+                                                                <tr>
+                                                                    <td>{{ e.label }}</td>
+                                                                    {% for cell in e.cells %}
+                                                                        <td class="num {% if cell.diagonal %}diag{% elif cell.n %}miss{% else %}zero{% endif %}">{{ cell.n }}</td>
+                                                                    {% endfor %}
+                                                                    <td class="num">{{ e.correct }}/{{ e.total }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                {% else %}
+                                                    <table class="p1-table">
+                                                        <tbody>
+                                                            <tr><td>Typical miss</td><td class="num">{{ row.errors.typical|floatformat:2 }}</td></tr>
+                                                            <tr><td>Worst miss</td><td class="num">{{ row.errors.worst|floatformat:2 }}</td></tr>
+                                                            <tr><td>Guessed too high / too low</td><td class="num">{{ row.errors.over }} / {{ row.errors.under }}</td></tr>
+                                                            <tr><td>Average bias</td><td class="num">{{ row.errors.bias|floatformat:2 }}</td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                {% endif %}
+                                                <p class="p1-why-note">Counted from
+                                                    {% term "cross-validation" %} inside the training
+                                                    rows, so every candidate can be inspected without
+                                                    spending the {% term "test-set" "test set" %} on it.</p>
+                                                </div>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if result.matrix %}
+                <div class="p1-card">
+                    <h2>Where it was wrong{% info "confusion-matrix" %}</h2>
+                    <p class="p1-sub">Rows are the true class, columns what the model said.
+                        One {% term "accuracy" %} figure hides which class pays for the mistakes
+                        &mdash; {% term "confusion-matrix" "this table does not" %}.</p>
+                    <div class="p1-scroll">
+                        <table class="p1-table p1-confusion">
+                            <thead>
+                                <tr><th>True \ predicted</th>
+                                    {% for label in result.labels %}<th class="num">{{ label }}</th>{% endfor %}
+                                    <th class="num">Total</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for row in result.matrix %}
+                                    <tr>
+                                        <td>{{ row.label }}</td>
+                                        {% for cell in row.cells %}
+                                            <td class="num {% if cell.diagonal %}diag{% elif cell.n %}miss{% else %}zero{% endif %}">{{ cell.n }}</td>
+                                        {% endfor %}
+                                        <td class="num">{{ row.total }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if fit_url %}
+                <div class="p1-card">
+                    <h2>Predicted against actual</h2>
+                    <p class="p1-sub">Points below the line are underestimates. A systematic tilt
+                        means the model is missing something the {% term "feature" "features" %} do
+                        not carry. The {% term "mae" "average size of the miss" %} is in the box
+                        above.</p>
+                    <figure class="p1-figure"><img src="{{ fit_url }}?v={{ stamp }}" alt="Predicted against actual"></figure>
+                </div>
+            {% endif %}
+
+            {% if leaderboard %}
+                <div class="p1-card">
+                    <h2>What it tried on your behalf</h2>
+                    <p class="p1-sub">Every model for this problem type, swept over its default grid.</p>
+                    <table class="p1-table">
+                        <thead><tr><th>Model</th><th>Setting</th>
+                            <th class="num">CV score</th><th class="num">Test score</th></tr></thead>
+                        <tbody>
+                            {% for row in leaderboard %}
+                                <tr class="{% if row.won %}picked{% endif %}">
+                                    <td>{{ row.label }}{% if row.won %}<span class="p1-tag win">used</span>{% endif %}</td>
+                                    <td>{{ row.param }} = {{ row.value|floatformat:"-4" }}</td>
+                                    <td class="num">{{ row.cv|floatformat:"-4" }}</td>
+                                    <td class="num">{{ row.test|floatformat:"-4" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{{ hints|json_script:"algo-hints" }}
+{{ score_hints|json_script:"score-hints" }}
+{% endblock %}
+
+{% block script %}
+<script>
+    const hints = JSON.parse(document.getElementById("algo-hints").textContent);
+    const scoreHints = JSON.parse(document.getElementById("score-hints").textContent);
+    const picker = document.getElementById("id_algorithm");
+    const scorePicker = document.getElementById("id_score");
+    const grid = document.getElementById("id_grid");
+    const base = "{% url 'project1:explain' 'model' %}".replace(/model\/$/, "");
+
+    function point(el, slug, tip) {
+        el.href = base + slug + "/";
+        el.title = tip;
+    }
+
+    function describe() {
+        const hint = hints[picker.value];
+        if (!hint) return;
+        document.getElementById("algo-help").textContent = hint.help;
+        document.getElementById("grid-help").textContent =
+            "Comma separated. Leave empty for the default: " + hint.grid + ".";
+        grid.placeholder = hint.grid;
+        point(document.getElementById("model-info"), hint.about, hint.about_short);
+        point(document.getElementById("param-info"), hint.param_about, hint.param_short);
+    }
+
+    function describeScore() {
+        const hint = scoreHints[scorePicker.value];
+        if (!hint) return;
+        point(document.getElementById("score-info"), hint.about, hint.short);
+    }
+
+    picker.addEventListener("change", function () { grid.value = ""; describe(); });
+    scorePicker.addEventListener("change", describeScore);
+    describe();
+    describeScore();
+</script>
+{% endblock %}

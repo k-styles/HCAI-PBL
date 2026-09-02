@@ -1,0 +1,40 @@
+{% extends 'project1/layout.html' %}
+
+{% block heading %}{{ topic.title }}{% endblock %}
+{% block lede %}{{ topic.short }}{% endblock %}
+
+{% block panel %}
+<div class="p1-explain">
+    {% for heading, paragraphs in topic.sections %}
+        <div class="p1-card">
+            <h2>{{ heading }}</h2>
+            {% for para in paragraphs %}<p>{{ para }}</p>{% endfor %}
+        </div>
+    {% endfor %}
+
+    {% if topic.advice %}
+        <div class="p1-note calm">
+            <p><strong>In practice:</strong> {{ topic.advice }}</p>
+        </div>
+    {% endif %}
+
+    {% if related %}
+        <div class="p1-card">
+            <h2>Related</h2>
+            <div class="p1-glossary">
+                {% for other in related %}
+                    <a class="p1-entry" href="{% url 'project1:explain' other.slug %}">
+                        <span class="p1-entry-title">{{ other.title }}</span>
+                        <span class="p1-entry-short">{{ other.short }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="p1-actions">
+        <a href="{% url 'project1:explain_index' %}"><button type="button" class="p1-btn ghost">All explanations</button></a>
+        <a href="{% url 'project1:train' %}"><button type="button" class="p1-btn">Back to training</button></a>
+    </div>
+</div>
+{% endblock %}
