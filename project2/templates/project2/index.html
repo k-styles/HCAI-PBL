@@ -1,0 +1,136 @@
+{% extends 'project2/layout.html' %}
+
+{% block heading %}Trading accuracy against readability{% endblock %}
+{% block lede %}Equation (1) says a model should be judged on what it gets right and on how
+much of it you have to read. The slider decides how much the second one counts.{% endblock %}
+
+{% block region %}
+<div class="p2-facts">
+    <div class="p2-fact"><div class="k">Model</div>
+        <div class="v">{% if kind == 'tree' %}Decision tree{% else %}Logistic regression{% endif %}</div></div>
+    <div class="p2-fact"><div class="k">Test accuracy</div>
+        <div class="v">{{ winner.accuracy|floatformat:3 }}</div></div>
+    <div class="p2-fact"><div class="k"><span class="sym">Ω</span> &mdash; {{ omega_name }}</div>
+        <div class="v">{{ winner.omega }}</div></div>
+    <div class="p2-fact"><div class="k">acc − <span class="sym">λΩ</span></div>
+        <div class="v">{{ objective_value|floatformat:'-4' }}</div></div>
+</div>
+
+<div class="p2-note">
+    <p>Trained on {{ penguins.train|length }} penguins, scored on the {{ penguins.test|length }}
+    held back. {{ penguins.dropped }} of the 344 rows were dropped for missing values.
+    Every model on this page shares one split, so their accuracies are comparable.</p>
+</div>
+
+{% if kind == 'tree' %}
+    <div class="p2-card">
+        <h2>The tree, as sentences</h2>
+        <p class="p2-sub">One line per path from the root to a decision. This is the form
+            that answers &ldquo;why did it say that&rdquo; without tracing a diagram.</p>
+        <ol class="p2-rules">
+            {% for rule in rules %}
+                <li>
+                    <span class="p2-rule-if">
+                        {% for condition in rule.conditions %}{% if not forloop.first %}
+                            <span class="p2-and">and</span> {% endif %}{{ condition }}{% endfor %}
+                    </span>
+                    <span class="p2-rule-then">→ {{ rule.prediction }}</span>
+                    <span class="p2-rule-meta">{{ rule.samples }} penguins,
+                        {{ rule.purity|floatformat:2 }} pure</span>
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+
+    <div class="p2-card">
+        <h2>The same tree, drawn</h2>
+        <p class="p2-sub">The conventional view. It stops being readable somewhere around a
+            dozen leaves, which is the argument the slider is making.</p>
+        <figure class="p2-figure"><img src="{{ tree_url }}" alt="Decision tree"></figure>
+    </div>
+{% else %}
+    <div class="p2-card">
+        <h2>What the model consults</h2>
+        <p class="p2-sub">Ω counts the features with a non-zero coefficient. A feature with
+            a coefficient of zero costs the reader nothing, which is the point.</p>
+        <div class="p2-scroll">
+            <table class="p2-table">
+                <thead><tr><th>Feature</th><th>Used</th>
+                    {% for c in winner.estimator.classes_ %}<th class="num">{{ c }}</th>{% endfor %}
+                </tr></thead>
+                <tbody>
+                    {% for row in coefficients %}
+                        <tr class="{% if not row.used %}p2-dropped{% endif %}">
+                            <td>{{ row.feature }}</td>
+                            <td>{% if row.used %}<span class="p2-yes">yes</span>
+                                {% else %}<span class="p2-no">dropped</span>{% endif %}</td>
+                            {% for cell in row.per_class %}
+                                <td class="num">{{ cell.value|floatformat:2 }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="p2-foot">Coefficients are on standardised features, so their sizes are
+            comparable across columns measured in millimetres and grams.</p>
+    </div>
+{% endif %}
+
+<div class="p2-card">
+    <h2>What the slider can actually reach</h2>
+    <p class="p2-sub">Each model is a straight line in λ with slope −Ω, so choosing the best
+        one is taking the highest line. Only models on the upper edge are ever highest &mdash;
+        the rest are beaten at every λ by something simpler, something better, or a blend.</p>
+
+    <div class="p2-split">
+        <figure class="p2-figure"><img src="{{ frontier_url }}" alt="Accuracy against complexity"></figure>
+        <figure class="p2-figure"><img src="{{ objective_url }}" alt="The objective against lambda"></figure>
+    </div>
+
+    <div class="p2-scroll">
+        <table class="p2-table">
+            <thead><tr><th>λ from</th><th>up to</th><th>gives you</th>
+                <th class="num">Ω</th><th class="num">accuracy</th></tr></thead>
+            <tbody>
+                {% for band in bands %}
+                    <tr class="{% if band.candidate.omega == winner.omega %}picked{% endif %}">
+                        <td>{{ band.low|floatformat:'-4' }}</td>
+                        <td>{% if band.high %}{{ band.high|floatformat:'-4' }}{% else %}anything higher{% endif %}</td>
+                        <td>{{ band.candidate.setting }}
+                            {% if band.candidate.omega == winner.omega %}
+                                <span class="p2-tag">selected now</span>{% endif %}</td>
+                        <td class="num">{{ band.candidate.omega }}</td>
+                        <td class="num">{{ band.candidate.accuracy|floatformat:3 }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="p2-foot">{{ family|length }} models were trained; {{ hull|length }} of them can
+        ever be selected. The others are greyed out in the plot on the left.</p>
+</div>
+
+<div class="p2-card">
+    <h2>Everything that was trained</h2>
+    <div class="p2-scroll">
+        <table class="p2-table">
+            <thead><tr><th>Setting</th><th class="num">Ω</th><th class="num">test</th>
+                <th class="num">train</th><th>Reachable</th><th>Detail</th></tr></thead>
+            <tbody>
+                {% for candidate in family %}
+                    <tr class="{% if candidate.omega == winner.omega %}picked{% endif %}">
+                        <td>{{ candidate.setting }}</td>
+                        <td class="num">{{ candidate.omega }}</td>
+                        <td class="num">{{ candidate.accuracy|floatformat:3 }}</td>
+                        <td class="num">{{ candidate.train_accuracy|floatformat:3 }}</td>
+                        <td>{% if candidate.omega in hull_omegas %}<span class="p2-yes">yes</span>
+                            {% else %}<span class="p2-no">never</span>{% endif %}</td>
+                        <td class="p2-detail">{{ candidate.detail }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

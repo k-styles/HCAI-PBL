@@ -1,0 +1,189 @@
+/* The shared sheet centres .box absolutely, which only works for pages shorter
+   than the window. Same override as project 1. */
+.box {
+    position: static;
+    transform: none;
+    width: min(1160px, 94%);
+    margin: 26px auto 48px;
+    padding: 0 0 34px;
+    grid-template-rows: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(12, 32, 68, 0.18);
+}
+
+.title-container { margin-top: 30px; }
+.title { font-size: 32px; letter-spacing: -0.4px; color: #16233A; }
+
+.p2-lede {
+    text-align: center;
+    color: #5A677E;
+    font-size: 15.5px;
+    margin: 6px auto 0;
+    max-width: 660px;
+}
+
+.p2-nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 22px 5% 0; }
+
+.p2-nav a {
+    padding: 7px 15px;
+    border-radius: 999px;
+    border: 1px solid #C9D5E8;
+    color: #34486E;
+    background: #F5F8FD;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.p2-nav a:hover { background: #E7EEF9; }
+.p2-nav a.current { background: #275CB2; border-color: #275CB2; color: #fff; }
+.p2-nav a.quiet { border-style: dashed; color: #7A879E; }
+
+.p2-body { margin: 24px 5% 0; font-size: 15.5px; color: #23304A; }
+
+/* ---- the shared control strip ---- */
+.p2-controls {
+    display: flex;
+    gap: 22px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    border: 1px solid #C9D5E8;
+    background: linear-gradient(180deg, #F7FAFE, #EFF4FC);
+    border-radius: 11px;
+    padding: 15px 18px;
+    margin-bottom: 20px;
+}
+
+.p2-control.grow { flex: 1 1 340px; }
+.p2-control-label { display: block; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.7px; color: #7C89A2; margin-bottom: 7px; font-weight: 600; }
+
+/* Greek stays as written: uppercasing turns lambda into Lambda, which reads as an A. */
+.p2-control-label .sym, .p2-fact .k .sym { text-transform: none; }
+
+.p2-switch { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.p2-chip {
+    width: auto; height: auto; margin: 0;
+    padding: 6px 14px;
+    font-size: 13.5px;
+    border-radius: 999px;
+    background: #fff;
+    color: #34486E;
+    border: 1px solid #C9D5E8;
+    opacity: 1;
+}
+
+.p2-chip:hover { background: #EDF3FC; opacity: 1; }
+.p2-chip.on { background: #275CB2; border-color: #275CB2; color: #fff; }
+
+.p2-slider { display: flex; align-items: center; gap: 12px; }
+.p2-slider input[type=range] { flex: 1; accent-color: #275CB2; }
+.p2-slider output { font-variant-numeric: tabular-nums; font-size: 14px; color: #16233A;
+    min-width: 82px; font-weight: 600; }
+
+.p2-apply {
+    width: auto; height: auto; margin: 0;
+    padding: 6px 14px; font-size: 13px; border-radius: 7px;
+}
+
+.p2-current { display: flex; gap: 18px; }
+.p2-current .k { display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.6px; color: #7C89A2; }
+.p2-current .v { font-size: 17px; color: #16233A; font-variant-numeric: tabular-nums; }
+
+/* ---- the own-work reminder ---- */
+.p2-own {
+    border: 1px solid #E3D3B8;
+    background: #FDFAF3;
+    border-radius: 10px;
+    padding: 14px 17px;
+    margin-bottom: 20px;
+}
+
+.p2-own-head { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: #8A6A26; font-weight: 700; }
+.p2-own blockquote { margin: 9px 0; padding-left: 12px; border-left: 3px solid #D9B978;
+    color: #6B5320; font-style: italic; font-size: 14px; text-align: left; }
+.p2-own p { margin: 7px 0 0; font-size: 14px; color: #4A3D22; text-align: left; line-height: 1.6; }
+.p2-own-where { font-size: 12.5px; color: #8A7A55; }
+.p2-own code { background: #F3EBDA; padding: 1px 6px; border-radius: 4px; }
+.p2-own a { color: #8A6A26; }
+
+/* ---- cards, facts, tables ---- */
+.p2-card { border: 1px solid #DCE4F0; border-radius: 10px; background: #fff;
+    padding: 20px 22px; margin-bottom: 20px; }
+.p2-card > h2 { margin: 0 0 4px; font-size: 19px; color: #16233A;
+    font-family: 'Segoe UI', Tahoma, sans-serif; }
+.p2-card > .p2-sub { margin: 0 0 16px; color: #6B7893; font-size: 14px; text-align: left; }
+.p2-card p { text-align: left; line-height: 1.62; }
+.p2-foot { font-size: 13px; color: #7C89A2; margin: 12px 0 0; text-align: left; }
+
+.p2-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 940px) { .p2-split { grid-template-columns: 1fr; } }
+
+.p2-facts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.p2-fact { flex: 1 1 150px; border: 1px solid #DCE4F0; border-radius: 9px;
+    padding: 12px 14px; background: #F8FAFE; }
+.p2-fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.7px; color: #7C89A2; }
+.p2-fact .v { font-size: 19px; color: #16233A; margin-top: 3px; }
+
+.p2-note { border-left: 3px solid #275CB2; background: #F3F7FD; padding: 13px 16px;
+    border-radius: 0 8px 8px 0; margin-bottom: 18px; font-size: 14.5px; color: #34486E; }
+.p2-note.warn { border-left-color: #D96A29; background: #FDF5EF; color: #7A4718; }
+.p2-note p { margin: 0 0 8px; text-align: left; }
+.p2-note p:last-child { margin-bottom: 0; }
+
+.p2-scroll { overflow-x: auto; }
+.p2-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.p2-table th { text-align: left; padding: 9px 11px; background: #F2F6FC; color: #3A4A66;
+    font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid #DCE4F0; white-space: nowrap; }
+.p2-table td { padding: 9px 11px; border-bottom: 1px solid #EDF1F8; }
+.p2-table td.num, .p2-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.p2-table tr.picked { background: #EAF3EC; }
+.p2-table tr.picked td { font-weight: 600; color: #1E6650; }
+.p2-table tr.p2-dropped td { color: #A9B4C6; }
+.p2-detail { font-size: 13px; color: #6B7893; }
+
+.p2-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: #DFF0E5; color: #1E6650; margin-left: 6px; }
+.p2-yes { color: #1E6650; font-weight: 600; }
+.p2-no { color: #A9B4C6; }
+
+.p2-figure { margin: 0; }
+.p2-figure img { width: 100%; border: 1px solid #DCE4F0; border-radius: 9px; display: block; }
+
+/* ---- the tree as sentences ---- */
+.p2-rules { margin: 0; padding-left: 22px; }
+.p2-rules li { padding: 9px 0; border-bottom: 1px solid #EDF1F8; line-height: 1.6; }
+.p2-rules li:last-child { border-bottom: none; }
+.p2-rule-if { color: #23304A; }
+.p2-and { color: #9AA7BC; font-size: 13px; }
+.p2-rule-then { font-weight: 600; color: #275CB2; margin-left: 6px; }
+.p2-rule-meta { display: block; font-size: 12.5px; color: #7C89A2; margin-top: 2px; }
+
+/* ---- forms ---- */
+.p2-form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.p2-form-row label { font-size: 13px; font-weight: 600; color: #3A4A66; min-width: 130px; }
+.p2-form select { flex: 1; padding: 8px 11px; border: 1px solid #C9D5E8; border-radius: 7px;
+    font-size: 14.5px; font-family: inherit; background: #fff; color: #16233A; max-width: 520px; }
+
+/* ---- counterfactuals ---- */
+.p2-cf { border: 1px solid #DCE4F0; border-radius: 9px; padding: 13px 16px; margin-bottom: 11px;
+    background: #FAFCFF; }
+.p2-cf-head { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.p2-cf-rank { width: 22px; height: 22px; border-radius: 50%; background: #275CB2; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
+    font-weight: 700; }
+.p2-cf-distance { font-size: 14px; color: #16233A; font-weight: 600; font-variant-numeric: tabular-nums; }
+.p2-cf-count { font-size: 12.5px; color: #7C89A2; margin-left: auto; }
+.p2-cf-changes { list-style: none; margin: 0; padding: 0; }
+.p2-cf-changes li { padding: 4px 0; font-size: 14px; display: flex; align-items: baseline;
+    gap: 8px; flex-wrap: wrap; }
+.p2-cf-feature { min-width: 150px; color: #3A4A66; font-weight: 600; }
+.p2-cf-was { color: #7C89A2; }
+.p2-cf-arrow { color: #9AA7BC; }
+.p2-cf-now { color: #16233A; font-weight: 600; }
+.p2-cf-delta { font-size: 12.5px; padding: 1px 7px; border-radius: 999px; }
+.p2-cf-delta.up { background: #E4F1E9; color: #1E6650; }
+.p2-cf-delta.down { background: #FBECEF; color: #9B2437; }

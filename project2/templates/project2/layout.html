@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'project2/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <div class="title-container">
+        <div class="title">{% block heading %}{% endblock %}</div>
+    </div>
+    <p class="p2-lede">{% block lede %}{% endblock %}</p>
+
+    <nav class="p2-nav">
+        <a class="quiet" href="{% url 'home:index' %}">&larr; Hub</a>
+        <a class="quiet" href="{% url 'project1:index' %}">Project 1</a>
+        <a href="{% url 'project2:index' %}" class="{% if page == 'model' %}current{% endif %}">1 &middot; The model</a>
+        <a href="{% url 'project2:counterfactual' %}" class="{% if page == 'counterfactual' %}current{% endif %}">2 &middot; Counterfactuals</a>
+        <a href="{% url 'project2:effects' %}" class="{% if page == 'effects' %}current{% endif %}">3 &middot; Feature effects</a>
+        <a class="quiet" href="{% url 'home:own_work' %}">Our own work</a>
+    </nav>
+
+    <div class="p2-body">
+        <!-- The control strip. It is identical on all three regions and drives all
+             three, which is what the brief means by keeping them linked. -->
+        <form method="post" class="p2-controls">
+            {% csrf_token %}
+            <div class="p2-control">
+                <span class="p2-control-label">Model class</span>
+                <div class="p2-switch">
+                    <button type="submit" name="kind" value="tree"
+                            class="p2-chip {% if kind == 'tree' %}on{% endif %}">decision tree</button>
+                    <button type="submit" name="kind" value="logistic"
+                            class="p2-chip {% if kind == 'logistic' %}on{% endif %}">logistic regression</button>
+                </div>
+            </div>
+
+            <div class="p2-control grow">
+                <span class="p2-control-label">
+                    <span class="sym">λ</span> &mdash; how much accuracy one unit of complexity must buy
+                </span>
+                <div class="p2-slider">
+                    <input type="range" id="lam-slider" min="0" max="{{ stops|length|add:'-1' }}"
+                           step="1" list="lam-stops">
+                    <output id="lam-readout">λ = {{ lam }}</output>
+                    <input type="hidden" name="lam" id="lam-value" value="{{ lam }}">
+                    <button type="submit" class="p2-apply">apply</button>
+                </div>
+            </div>
+
+            <div class="p2-current">
+                <div><span class="k">selected</span>
+                    <span class="v">Ω = {{ winner.omega }}</span></div>
+                <div><span class="k">test accuracy</span>
+                    <span class="v">{{ winner.accuracy|floatformat:3 }}</span></div>
+            </div>
+        </form>
+
+        {% if page_requirements %}
+            {% for requirement in page_requirements %}
+                <div class="p2-own">
+                    <div class="p2-own-head">Our own work &mdash; Project 2, {{ requirement.task }}</div>
+                    <blockquote>{{ requirement.quote }}</blockquote>
+                    <p>{{ requirement.answer }}</p>
+                    <p class="p2-own-where">Implemented in <code>{{ requirement.where }}</code>,
+                        under a marked block. <a href="{% url 'home:own_work' %}">All such requirements &rarr;</a></p>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block region %}{% endblock %}
+    </div>
+</div>
+
+{{ stops|json_script:"lam-stops-data" }}
+{% endblock %}
+
+{% block script %}
+<script>
+    const stops = JSON.parse(document.getElementById("lam-stops-data").textContent);
+    const slider = document.getElementById("lam-slider");
+    const readout = document.getElementById("lam-readout");
+    const hidden = document.getElementById("lam-value");
+    const current = parseFloat(hidden.value);
+
+    let nearest = 0;
+    stops.forEach((v, i) => {
+        if (Math.abs(v - current) < Math.abs(stops[nearest] - current)) nearest = i;
+    });
+    slider.value = nearest;
+
+    function show() {
+        const value = stops[slider.value];
+        hidden.value = value;
+        readout.textContent = "λ = " + value;
+    }
+
+    slider.addEventListener("input", show);
+    slider.addEventListener("change", function () { show(); slider.form.submit(); });
+    show();
+</script>
+{% endblock %}

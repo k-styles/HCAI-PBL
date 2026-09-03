@@ -1,5 +1,7 @@
 # Where an LLM was used in this project
 
+Covers Projects 1 and 2. Updated as later projects are done.
+
 The implementation was drafted with an LLM (Claude, via Claude Code) over a
 single working session, then read through and corrected. This file records
 which parts that applies to and where the line ran, since "AI-assisted" on its
@@ -59,13 +61,40 @@ lecture 1 either way, and a model asked to "pick a hyperparameter" reaches for
 Using it as a drafting tool worked; using it as the source of the design would
 have produced a worse project.
 
+## Project 2 specifically
+
+The brief for Project 2 names parts that must be our own, and those are tracked
+formally rather than in prose: `home/own_work.py` holds each requirement with the
+brief's exact wording, the file satisfying it, and what was decided. Each such
+block in the code carries a marker comment, and `/home/own-work/` re-reads the
+files and reports whether the markers survive. That page fails loudly if a marked
+block is deleted or moved.
+
+| Requirement | What was decided, and by whom |
+|---|---|
+| Ω for logistic regression (Task 3) | Number of original features with a non-zero coefficient under L1. Decided first, then written up. The reasoning — that Ω must measure reader effort in both model classes, and that L2 would leave Ω constant — is the answer the brief is asking for, and it is not something to delegate. |
+| Noising categorical data (§2) | Flip-with-probability, redrawn from the empirical distribution. Decided first. |
+| Sparse counterfactual proposals | Mine, and not asked for. Perturbing all four measurements every draw made every answer useless; restricting each draw to a random subset turned "change all four things slightly" into "grow the bill by 4.5 mm". |
+| The λ frontier | Mine, and not asked for. Recognising that acc − λΩ is a line in λ, so only the upper concave hull is ever selectable, is a small piece of geometry that makes the slider explainable instead of mysterious. Model-drafted code, human-noticed idea. |
+| PDP and ALE (Task 5) | Formulas taken from lecture 3 and the brief; the implementation written out. No library is called. The exact-vs-discretised distinction the brief asks about was reasoned through, not looked up. |
+
+The honest summary is the same as for Project 1: the model was fast at Django
+plumbing, matplotlib and templates, and would have reached for
+`sklearn.inspection.partial_dependence` for Task 5 — which is precisely the
+answer the brief exists to prevent.
+
 ## What was checked by hand
 
 - The stratified folds were checked to be disjoint, complete, and class-balanced.
 - Ridge on the diabetes dataset reproduces lecture 1's reported MSE of roughly
   2856 to within the noise of the split, which is the closest thing to a
   reference result available.
-- Four bugs surfaced during verification and were fixed: a misleading error
+- Project 2's frontier was checked against brute force: sweeping λ over 35,000
+  values and taking the arg max reproduces exactly the models the hull predicts.
+- Project 2's two ALE routes were checked against each other; the closed-form
+  softmax derivative and the finite-difference estimate agree to 1.5e-4.
+- The PDP was checked against an independent hand computation.
+- Four bugs surfaced during verification of Project 1 and were fixed: a misleading error
   message on very small files, a crash when the default `k` grid exceeded the
   rows available in a fold, a hardcoded claim in the AutoML warning text that
   happened to be true for iris and false in general, and a 500 when a text
@@ -76,3 +105,10 @@ but only on a numeric target, where it happens to work. A test that exercises a
 feature on the one input it was written against is not a test. The override is
 now checked across every combination of the three problem-type settings and
 three shapes of target column.
+
+Two more were found in Project 2. The `saga` solver is stochastic, and without a
+fixed `random_state` the fitted coefficients — and therefore Ω, and therefore the
+whole frontier — changed between runs; caught by running the same computation in
+three separate processes and comparing. And `text-transform: uppercase` turns a
+Greek lambda into a capital lambda, which reads as an "A", so the slider label
+said "REGULARISATION A" until it was noticed on screen.

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+        <link rel="stylesheet" href="{% static 'home/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <div class="title-container">
+        <div class="title">Our own work</div>
+    </div>
+
+    <div class="main-text">
+        <p class="centered-text">The briefs single out certain parts as things we must
+        implement or decide ourselves rather than take from a library. Each is listed
+        here with the brief's own words, where it lives, and what we did.</p>
+
+        {% if failing %}
+            <div class="ow-alert bad">{{ failing|length }} of {{ total }} entries no longer
+                match the code &mdash; a file was moved, or a marked block was deleted.</div>
+        {% else %}
+            <div class="ow-alert good">All {{ total }} entries check out: every file below
+                exists and still carries its marker comment.</div>
+        {% endif %}
+
+        {% for requirement, state in checked %}
+            <div class="ow-item">
+                <div class="ow-head">
+                    <span class="ow-tag">Project {{ requirement.project }} · {{ requirement.task }}</span>
+                    <span class="ow-kind">{{ requirement.label }}</span>
+                    <span class="ow-state {% if state == 'ok' %}ok{% else %}bad{% endif %}">{{ state }}</span>
+                </div>
+                <blockquote class="ow-quote">{{ requirement.quote }}</blockquote>
+                <div class="ow-where"><code>{{ requirement.where }}</code></div>
+                <p class="ow-answer">{{ requirement.answer }}</p>
+            </div>
+        {% endfor %}
+
+        <p class="hub-foot"><a href="{% url 'home:index' %}">&larr; Back to the hub</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}{% endblock script %}

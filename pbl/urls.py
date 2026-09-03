@@ -25,6 +25,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("demos/", include("demos.urls")),
     path("project1/", include("project1.urls")),
+    path("project2/", include("project2.urls")),
     # Figures are generated per session and served from disk. Django's own
     # static serve is not built for high traffic, which is not a concern for a
     # single-user demo, and it is the only thing that works with DEBUG off.

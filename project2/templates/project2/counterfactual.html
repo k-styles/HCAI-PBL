@@ -1,0 +1,132 @@
+{% extends 'project2/layout.html' %}
+
+{% block heading %}What would have had to be different?{% endblock %}
+{% block lede %}Pick a penguin and a species you would rather the model had said, and see the
+smallest changes that would have got you there.{% endblock %}
+
+{% block region %}
+<div class="p2-card">
+    <h2>Choose a penguin and a target</h2>
+    <p class="p2-sub">The counterfactuals come from the model selected above &mdash;
+        {% if kind == 'tree' %}the decision tree{% else %}logistic regression{% endif %}
+        at Ω = {{ winner.omega }}. Change the model or λ and these change with it.</p>
+
+    <form method="post" class="p2-form">
+        {% csrf_token %}
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <input type="hidden" name="lam" value="{{ lam }}">
+        <div class="p2-form-row">
+            <label for="example">Penguin</label>
+            <select name="example" id="example" onchange="this.form.submit()">
+                {% for option in example_rows %}
+                    <option value="{{ option.index }}"
+                        {% if option.index == example_index %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="p2-form-row">
+            <label for="target">Should have been</label>
+            <select name="target" id="target" onchange="this.form.submit()">
+                {% for species in penguins.classes %}
+                    <option value="{{ species }}" {% if species == target %}selected{% endif %}>{{ species }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+<div class="p2-facts">
+    <div class="p2-fact"><div class="k">Actually</div><div class="v">{{ actual }}</div></div>
+    <div class="p2-fact"><div class="k">Model says</div><div class="v">{{ predicted }}</div></div>
+    <div class="p2-fact"><div class="k">You want</div><div class="v">{{ target }}</div></div>
+</div>
+
+<div class="p2-card">
+    <h2>Penguin #{{ example_index }} as it is</h2>
+    <div class="p2-scroll">
+        <table class="p2-table">
+            <thead><tr>
+                <th>bill length</th><th>bill depth</th><th>flipper</th><th>body mass</th>
+                <th>island</th><th>sex</th><th>year</th></tr></thead>
+            <tbody><tr>
+                <td>{{ example.bill_length_mm|floatformat:1 }} mm</td>
+                <td>{{ example.bill_depth_mm|floatformat:1 }} mm</td>
+                <td>{{ example.flipper_length_mm|floatformat:0 }} mm</td>
+                <td>{{ example.body_mass_g|floatformat:0 }} g</td>
+                <td>{{ example.island }}</td>
+                <td>{{ example.sex }}</td>
+                <td>{{ example.year }}</td>
+            </tr></tbody>
+        </table>
+    </div>
+</div>
+
+{% if already %}
+    <div class="p2-note warn">
+        <p>The model already says <strong>{{ target }}</strong> for this penguin, so there is
+        nothing to change. Pick a different target.</p>
+    </div>
+{% elif found %}
+    <div class="p2-card">
+        <h2>The {{ found|length }} closest ways to get {{ target }}</h2>
+        <p class="p2-sub">Ranked by MAD-weighted L¹ distance: each feature's change is divided
+            by that feature's own median absolute deviation, so millimetres and grams are
+            compared on equal terms. Lower is a smaller ask.</p>
+
+        {% for candidate in found %}
+            <div class="p2-cf">
+                <div class="p2-cf-head">
+                    <span class="p2-cf-rank">{{ forloop.counter }}</span>
+                    <span class="p2-cf-distance">distance {{ candidate.distance|floatformat:3 }}</span>
+                    <span class="p2-cf-count">{{ candidate.changes|length }} change{{ candidate.changes|length|pluralize }}</span>
+                </div>
+                <ul class="p2-cf-changes">
+                    {% for change in candidate.changes %}
+                        <li>
+                            <span class="p2-cf-feature">{{ change.feature }}</span>
+                            <span class="p2-cf-was">{{ change.was }}</span>
+                            <span class="p2-cf-arrow">→</span>
+                            <span class="p2-cf-now">{{ change.now }}</span>
+                            {% if change.kind == 'number' %}
+                                <span class="p2-cf-delta {% if change.up %}up{% else %}down{% endif %}">
+                                    {% if change.up %}+{% endif %}{{ change.delta }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="p2-note warn">
+        <p>Nothing found, even after widening the search to
+        {{ log|last }} draws. For this model that target may simply be unreachable from
+        here &mdash; a tree with two leaves cannot predict a third species at all.</p>
+    </div>
+{% endif %}
+
+<div class="p2-card">
+    <h2>How hard it had to look</h2>
+    <p class="p2-sub">Each round samples more widely than the last. It stops as soon as it has
+        enough, so a target that is easy to reach costs one round.</p>
+    <div class="p2-scroll">
+        <table class="p2-table">
+            <thead><tr><th class="num">Round</th><th class="num">Draws</th>
+                <th class="num">Numeric spread (× MAD)</th>
+                <th class="num">Chance of changing a category</th>
+                <th class="num">Hits</th></tr></thead>
+            <tbody>
+                {% for entry in log %}
+                    <tr>
+                        <td class="num">{{ entry.round }}</td>
+                        <td class="num">{{ entry.draws }}</td>
+                        <td class="num">{{ entry.spread }}</td>
+                        <td class="num">{{ entry.flip }}</td>
+                        <td class="num">{{ entry.hits }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

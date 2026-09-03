@@ -1,0 +1,63 @@
+{% extends 'project2/layout.html' %}
+
+{% block heading %}What does one measurement do?{% endblock %}
+{% block lede %}Two views of the same question, which disagree in a way worth understanding.{% endblock %}
+
+{% block region %}
+<div class="p2-card">
+    <h2>Pick a feature</h2>
+    <p class="p2-sub">Curves come from the model selected above &mdash;
+        {% if kind == 'tree' %}the decision tree{% else %}logistic regression{% endif %}
+        at Ω = {{ winner.omega }}. One curve per species.</p>
+    <form method="post" class="p2-form">
+        {% csrf_token %}
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <input type="hidden" name="lam" value="{{ lam }}">
+        <div class="p2-switch">
+            {% for value, label in numeric %}
+                <button type="submit" name="feature" value="{{ value }}"
+                        class="p2-chip {% if value == feature %}on{% endif %}">{{ label }}</button>
+            {% endfor %}
+        </div>
+    </form>
+</div>
+
+<div class="p2-card">
+    <h2>{{ curve.pretty }}</h2>
+    <figure class="p2-figure">
+        <img src="{{ effects_url }}" alt="PDP and ALE for {{ curve.pretty }}">
+    </figure>
+</div>
+
+<div class="p2-split">
+    <div class="p2-card">
+        <h2>Partial dependence</h2>
+        <p>Force every penguin in the data to this value of {{ curve.pretty }}, ask the model,
+        and average the answers.</p>
+        <p>Its weakness is built in: flipper length and body mass move together in real
+        penguins, so setting a flipper to 230&nbsp;mm while leaving body mass alone asks the
+        model about an animal that does not exist. The curve is an average over impossible
+        penguins as much as real ones.</p>
+    </div>
+
+    <div class="p2-card">
+        <h2>Accumulated local effects</h2>
+        <p>Split the range into bins and, inside each one, use only the penguins whose own
+        {{ curve.pretty }} falls in that bin. Add the local changes up as you move along.</p>
+        <p>Nothing impossible is ever evaluated, which is the whole advantage. The price is
+        that the curve shows <em>change</em> from the average rather than an absolute
+        probability, so it is centred on zero and reads as &ldquo;better or worse than
+        typical&rdquo;.</p>
+    </div>
+</div>
+
+<div class="p2-note">
+    <p><strong>Where the derivative came from.</strong> {{ curve.derivative }}.</p>
+    {% if curve.exact %}
+        <p>Because this model is smooth, both routes are available and were checked against
+        each other during development: the closed-form derivative and the finite-difference
+        estimate agree to about 1 part in 10,000, which is what makes the derivative
+        trustworthy.</p>
+    {% endif %}
+</div>
+{% endblock %}
