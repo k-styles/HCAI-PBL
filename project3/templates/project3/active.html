@@ -1,0 +1,70 @@
+{% extends 'project3/layout.html' %}
+{% load p3_glossary %}
+
+{% block heading %}Which questions to ask{% endblock %}
+{% block lede %}Now nobody has told us what the expert is good at. We have to find out by
+asking &mdash; and every question costs their time.{% endblock %}
+
+{% block region %}
+<div class="p3-note">
+    <p>The previous page assumed we already knew how the expert performs on all 120,000
+    training articles. Here we start knowing nothing, and may only learn by showing them one
+    article at a time. The question is which ones to choose.</p>
+</div>
+
+<div class="p3-card">
+    <h2>Does choosing beat asking at random? {% info "acquisition" %}</h2>
+    <figure class="p3-figure">
+        <img src="{{ curves_url }}" alt="Team accuracy against number of expert queries">
+    </figure>
+    <p class="p3-foot">Averaged over {{ seeds|length }} runs; the bands are one standard
+        deviation. All four lines start together because they share the same opening batch,
+        so there is nothing to separate them until targeting begins.</p>
+</div>
+
+<div class="p3-card">
+    <h2>The four strategies</h2>
+    <div class="p3-scroll">
+        <table class="p3-table">
+            <thead><tr><th>Strategy</th><th>What it asks about</th>
+                <th class="num">At {{ budgets|last }} questions</th></tr></thead>
+            <tbody>
+                {% for key, description in strategies.items %}
+                    <tr class="{% if key == 'boundary' %}picked{% endif %}">
+                        <td>{{ key }}</td>
+                        <td>{{ description }}</td>
+                        <td class="num">{{ final|dictget:key|dictget:"accuracy"|floatformat:4 }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="p3-card">
+    <h2>Reading this honestly</h2>
+    {% if lead > 0.001 %}
+        <p>Choosing the questions is worth <strong>{{ lead|floatformat:4 }}</strong> of accuracy
+        over asking at random by the last budget, against a run-to-run spread of about
+        {{ lead_sd|floatformat:4 }}. That is a real difference, not noise.</p>
+        <p>But it does not appear early. Up to roughly a thousand questions the four strategies
+        are indistinguishable, and the gap only opens after that. This is the opposite of the
+        usual story about active learning, where the benefit is supposed to be largest when
+        data is scarcest. Here the targeting has to <em>have</em> a decent estimate before it
+        can aim, and until it does it is aiming at noise.</p>
+    {% else %}
+        <p>For this expert, choosing the questions is worth
+        <strong>{{ lead|floatformat:4 }}</strong> against a run-to-run spread of about
+        {{ lead_sd|floatformat:4 }} &mdash; which is to say, nothing. No strategy beats asking
+        at random.</p>
+        <p>That is a genuine result rather than a failure to report. This expert's competence
+        depends on surface properties of the text that have almost nothing to do with whether
+        the machine gets the article right, so there is little for any strategy to find and no
+        clever way to find it faster. Switch experts above to see the contrast.</p>
+    {% endif %}
+    <p>With every expert answer known, the same policy reaches
+    {{ full_information|floatformat:4 }}. So the last budget on the chart recovers most of
+    what unlimited access to the expert would have bought, from
+    {{ budgets|last }} questions out of 120,000.</p>
+</div>
+{% endblock %}

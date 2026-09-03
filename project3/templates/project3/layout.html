@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load p3_glossary %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'project3/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <div class="title-container">
+        <div class="title">{% block heading %}{% endblock %}</div>
+    </div>
+    <p class="p3-lede">{% block lede %}{% endblock %}</p>
+
+    <nav class="p3-nav">
+        <a class="quiet" href="{% url 'home:index' %}">&larr; Hub</a>
+        <a class="quiet" href="{% url 'project2:index' %}">Project 2</a>
+        <a href="{% url 'project3:index' %}" class="{% if page == 'model' %}current{% endif %}">1 &middot; Who is good at what</a>
+        <a href="{% url 'project3:defer' %}" class="{% if page == 'defer' %}current{% endif %}">2 &middot; When to hand over</a>
+        <a href="{% url 'project3:active' %}" class="{% if page == 'active' %}current{% endif %}">3 &middot; Which questions to ask</a>
+        <a href="{% url 'project3:explain_index' %}" class="{% if page == 'explain' %}current{% endif %}">What do these words mean?</a>
+    </nav>
+
+    <div class="p3-body">
+        {% block controls %}
+            <form method="post" class="p3-controls">
+                {% csrf_token %}
+                <div class="p3-control">
+                    <span class="p3-control-label">Expert {% info "expert" %}</span>
+                    <div class="p3-switch">
+                        {% for key, info in experts.items %}
+                            <button type="submit" name="expert" value="{{ key }}"
+                                    class="p3-chip {% if key == expert_key %}on{% endif %}">{{ info.label }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+                <input type="hidden" name="tau" value="{{ tau }}">
+                <div class="p3-current">
+                    <div><span class="k">classifier alone</span>
+                        <span class="v">{{ machine_accuracy|floatformat:4 }}</span></div>
+                    <div><span class="k">this expert alone</span>
+                        <span class="v">{{ expert.accuracy|floatformat:4 }}</span></div>
+                </div>
+            </form>
+        {% endblock %}
+
+        {% if page_requirements %}
+            {% for requirement in page_requirements %}
+                <div class="p3-own">
+                    <div class="p3-own-head">Our own work &mdash; Project 3, {{ requirement.task }}</div>
+                    <blockquote>{{ requirement.quote }}</blockquote>
+                    <p>{{ requirement.answer }}</p>
+                    <p class="p3-own-where">In <code>{{ requirement.where }}</code>, under a marked
+                        block. <a href="{% url 'home:own_work' %}">All such requirements &rarr;</a></p>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block region %}{% endblock %}
+
+        {% if has_report %}
+            <div class="p3-report">
+                <div>
+                    <strong>Project 3 report</strong>
+                    <span>The brief asks for a written PDF, reachable from here.</span>
+                </div>
+                <a href="{% url 'project3:report' %}" target="_blank" rel="noopener">
+                    <button type="button" class="p3-btn">Download the PDF</button></a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}{% endblock script %}

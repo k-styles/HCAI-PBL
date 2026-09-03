@@ -16,20 +16,30 @@
         implement or decide ourselves rather than take from a library. Each is listed
         here with the brief's own words, where it lives, and what we did.</p>
 
-        {% if failing %}
-            <div class="ow-alert bad">{{ failing|length }} of {{ total }} entries no longer
-                match the code &mdash; a file was moved, or a marked block was deleted.</div>
-        {% else %}
+        {% if counts.broken %}
+            <div class="ow-alert bad">{{ counts.broken }} of {{ total }} entries are
+                <strong>broken</strong>: the file exists but its marker comment is gone, so
+                something that was satisfied may no longer be.</div>
+        {% endif %}
+        {% if counts.pending %}
+            <div class="ow-alert wip">{{ counts.pending }} of {{ total }} entries are for
+                work still in progress &mdash; the file has not been written yet. That is
+                expected while a project is unfinished, and is not a failure.</div>
+        {% endif %}
+        {% if not counts.broken and not counts.pending %}
             <div class="ow-alert good">All {{ total }} entries check out: every file below
                 exists and still carries its marker comment.</div>
+        {% elif counts.ok %}
+            <div class="ow-alert good">{{ counts.ok }} of {{ total }} verified: file present,
+                marker intact.</div>
         {% endif %}
 
-        {% for requirement, state in checked %}
+        {% for requirement, state, label in checked %}
             <div class="ow-item">
                 <div class="ow-head">
                     <span class="ow-tag">Project {{ requirement.project }} · {{ requirement.task }}</span>
                     <span class="ow-kind">{{ requirement.label }}</span>
-                    <span class="ow-state {% if state == 'ok' %}ok{% else %}bad{% endif %}">{{ state }}</span>
+                    <span class="ow-state {{ state }}">{{ label }}</span>
                 </div>
                 <blockquote class="ow-quote">{{ requirement.quote }}</blockquote>
                 <div class="ow-where"><code>{{ requirement.where }}</code></div>

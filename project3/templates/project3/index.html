@@ -1,0 +1,69 @@
+{% extends 'project3/layout.html' %}
+{% load p3_glossary %}
+
+{% block heading %}Who is good at what{% endblock %}
+{% block lede %}A machine that sorts news articles by topic, and a human expert who is better
+than it at some things and much worse at others.{% endblock %}
+
+{% block region %}
+<div class="p3-facts">
+    <div class="p3-fact"><div class="k">Articles judged</div><div class="v">{{ n_rows }}</div></div>
+    <div class="p3-fact"><div class="k">{% term "classifier" "Classifier" %} alone</div>
+        <div class="v">{{ machine_accuracy|floatformat:4 }}</div></div>
+    <div class="p3-fact"><div class="k">{% term "expert" "Expert" %} alone</div>
+        <div class="v">{{ expert.accuracy|floatformat:4 }}</div></div>
+    <div class="p3-fact"><div class="k">Regions {% info "region" %}</div>
+        <div class="v">{{ regions|length }}</div></div>
+</div>
+
+<div class="p3-note">
+    <p>The expert is <strong>far worse overall</strong> than the machine, and that is the
+    point. Someone who is right 70% of the time across the board can still be the better
+    person to ask about a particular article &mdash; if you can work out which articles those
+    are. That is what the next two pages do.</p>
+    <p>Underlined words anywhere on this page open a plain explanation.</p>
+</div>
+
+<div class="p3-card">
+    <h2>{{ expert.label }}</h2>
+    <p class="p3-sub">{{ expert.description }}</p>
+    <figure class="p3-figure">
+        <img src="{{ regions_url }}" alt="Accuracy per region for expert and classifier">
+    </figure>
+    <p class="p3-foot">Handing over pays in {{ helpful_regions|length }} of the
+        {{ regions|length }} {% term "region" "regions" %} &mdash; and being the expert's
+        speciality is not the same as being worth asking, because the machine may be better
+        still in exactly that region.</p>
+</div>
+
+<div class="p3-card">
+    <h2>Region by region</h2>
+    <p class="p3-sub">Ordered by how much the expert helps. The words are what the articles in
+        each region are mostly about &mdash; nobody wrote these labels, they fall out of the text.</p>
+    <div class="p3-scroll">
+        <table class="p3-table">
+            <thead><tr>
+                <th class="num">Region</th><th class="num">Articles</th>
+                <th class="num">Expert</th><th class="num">Classifier</th>
+                <th class="num">Difference</th><th>Hand over?</th><th>Mostly about</th>
+            </tr></thead>
+            <tbody>
+                {% for row in regions %}
+                    <tr class="{% if row.worth_deferring %}picked{% endif %}">
+                        <td class="num">{{ row.cluster }}</td>
+                        <td class="num">{{ row.n }}</td>
+                        <td class="num">{{ row.expert|floatformat:3 }}</td>
+                        <td class="num">{{ row.classifier|floatformat:3 }}</td>
+                        <td class="num">{{ row.advantage|floatformat:3 }}</td>
+                        <td>{% if row.worth_deferring %}<span class="p3-yes">yes</span>
+                            {% else %}<span class="p3-no">no</span>{% endif %}</td>
+                        <td class="p3-terms">
+                            {% for word in top_terms|dictget:row.cluster %}{{ word }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

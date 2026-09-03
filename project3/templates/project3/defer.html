@@ -1,0 +1,119 @@
+{% extends 'project3/layout.html' %}
+{% load p3_glossary %}
+
+{% block heading %}When to hand over{% endblock %}
+{% block lede %}Choose how sure the system has to be before it interrupts a person.{% endblock %}
+
+{% block region %}
+<div class="p3-card">
+    <h2>The dial {% info "threshold" %}</h2>
+    <p class="p3-sub">The system estimates, for each article, how much more likely the expert
+        is to be right than the machine &mdash; the {% term "advantage" "advantage score" %}.
+        It hands over when that exceeds the threshold below.</p>
+    <form method="post" class="p3-slider-form">
+        {% csrf_token %}
+        <input type="hidden" name="expert" value="{{ expert_key }}">
+        <div class="p3-slider">
+            <span class="p3-slider-end">hand over readily</span>
+            <input type="range" id="tau-slider" min="0" max="{{ stops|length|add:'-1' }}" step="1">
+            <span class="p3-slider-end">only when certain</span>
+            <output id="tau-readout">τ = {{ tau }}</output>
+            <input type="hidden" name="tau" id="tau-value" value="{{ tau }}">
+            <button type="submit" class="p3-btn">apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="p3-facts">
+    <div class="p3-fact"><div class="k">{% term "team-accuracy" "Team accuracy" %}</div>
+        <div class="v">{{ scores.accuracy|floatformat:4 }}</div></div>
+    <div class="p3-fact"><div class="k">vs classifier alone</div>
+        <div class="v {% if scores.gain > 0 %}good{% elif scores.gain < 0 %}bad{% endif %}">
+            {{ scores.gain|floatformat:4 }}</div></div>
+    <div class="p3-fact"><div class="k">{% term "deferral-rate" "Handed over" %}</div>
+        <div class="v">{{ scores.deferral_rate|floatformat:3 }}</div></div>
+    <div class="p3-fact"><div class="k">{% term "deferral-precision" "Precision" %}</div>
+        <div class="v">{{ scores.precision|floatformat:3 }}</div></div>
+    <div class="p3-fact"><div class="k">Recall</div>
+        <div class="v">{{ scores.recall|floatformat:3 }}</div></div>
+</div>
+
+<div class="p3-card">
+    <h2>Was each handover worth it? {% info "outcomes" %}</h2>
+    <p class="p3-sub">Of the {{ scores.n_deferred }} articles sent to the expert, only the
+        green band needed to be sent. Accuracy alone would not tell you this.</p>
+    <figure class="p3-figure"><img src="{{ outcomes_url }}" alt="Outcome breakdown"></figure>
+    <div class="p3-scroll">
+        <table class="p3-table">
+            <thead><tr><th>Case</th><th class="num">Handed over</th><th class="num">Kept</th><th>Meaning</th></tr></thead>
+            <tbody>
+                <tr class="picked"><td>Only the expert is right</td><td class="num">{{ counts.expert_only }}</td>
+                    <td class="num">{{ kept.expert_only }}</td><td>the reason deferral exists</td></tr>
+                <tr><td>Both right</td><td class="num">{{ counts.both }}</td>
+                    <td class="num">{{ kept.both }}</td><td>harmless, but a person's time spent for nothing</td></tr>
+                <tr><td>Only the classifier is right</td><td class="num">{{ counts.machine_only }}</td>
+                    <td class="num">{{ kept.machine_only }}</td><td>handing over made the answer worse</td></tr>
+                <tr><td>Neither is right</td><td class="num">{{ counts.neither }}</td>
+                    <td class="num">{{ kept.neither }}</td><td>nobody could have got it</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="p3-card">
+    <h2>What each level of interruption buys</h2>
+    <figure class="p3-figure"><img src="{{ tradeoff_url }}" alt="Accuracy against deferral rate"></figure>
+    <div class="p3-scroll">
+        <table class="p3-table">
+            <thead><tr><th>Policy</th><th class="num">Team accuracy</th>
+                <th class="num">Handed over</th><th class="num">Precision</th><th>Note</th></tr></thead>
+            <tbody>
+                <tr><td>Never hand over</td><td class="num">{{ never.accuracy|floatformat:4 }}</td>
+                    <td class="num">0.000</td><td class="num">&mdash;</td><td>the machine on its own</td></tr>
+                <tr><td>Always hand over</td><td class="num">{{ always.accuracy|floatformat:4 }}</td>
+                    <td class="num">1.000</td><td class="num">{{ always.precision|floatformat:3 }}</td>
+                    <td>the expert on their own &mdash; note the precision</td></tr>
+                <tr><td>Hand over what the machine is least sure of</td>
+                    <td class="num">{{ by_confidence.accuracy|floatformat:4 }}</td>
+                    <td class="num">{{ by_confidence.deferral_rate|floatformat:3 }}</td>
+                    <td class="num">{{ by_confidence.precision|floatformat:3 }}</td>
+                    <td>the obvious approach, needing no expert data at all</td></tr>
+                <tr class="picked"><td>Learned policy at your threshold</td>
+                    <td class="num">{{ scores.accuracy|floatformat:4 }}</td>
+                    <td class="num">{{ scores.deferral_rate|floatformat:3 }}</td>
+                    <td class="num">{{ scores.precision|floatformat:3 }}</td>
+                    <td>what this page is doing</td></tr>
+                <tr><td>{% term "oracle" "Oracle" %}</td><td class="num">{{ oracle.accuracy|floatformat:4 }}</td>
+                    <td class="num">{{ oracle.deferral_rate|floatformat:3 }}</td>
+                    <td class="num">1.000</td><td>cheats by knowing the answers &mdash; the ceiling</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="p3-foot">There are {{ headroom|floatformat:4 }} of accuracy available between the
+        machine alone and the oracle. The current setting captures
+        <strong>{{ captured|floatformat:2 }}</strong> of it.</p>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    const stops = {{ stops|safe }};
+    const slider = document.getElementById("tau-slider");
+    const readout = document.getElementById("tau-readout");
+    const hidden = document.getElementById("tau-value");
+    const current = parseFloat(hidden.value);
+    let nearest = 0;
+    stops.forEach((v, i) => {
+        if (Math.abs(v - current) < Math.abs(stops[nearest] - current)) nearest = i;
+    });
+    slider.value = nearest;
+    function show() {
+        const value = stops[slider.value];
+        hidden.value = value;
+        readout.textContent = "τ = " + value;
+    }
+    slider.addEventListener("input", show);
+    slider.addEventListener("change", function () { show(); slider.form.submit(); });
+    show();
+</script>
+{% endblock %}

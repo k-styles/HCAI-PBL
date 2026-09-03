@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "demos",
     "project1",
     "project2",
+    "project3",
 ]
 
 MIDDLEWARE = [

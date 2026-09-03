@@ -1,6 +1,6 @@
 # Where an LLM was used in this project
 
-Covers Projects 1 and 2. Updated as later projects are done.
+Covers Projects 1 to 3. Updated as later projects are done.
 
 The implementation was drafted with an LLM (Claude, via Claude Code) over a
 single working session, then read through and corrected. This file records
@@ -83,6 +83,28 @@ plumbing, matplotlib and templates, and would have reached for
 `sklearn.inspection.partial_dependence` for Task 5 — which is precisely the
 answer the brief exists to prevent.
 
+## Project 3 specifically
+
+Two entries in the registry apply here: the simulated expert (Task 2) and the
+active learning strategy (Task 4), both marked in the code and both verified by
+the audit page.
+
+| Requirement | What was decided, and by whom |
+|---|---|
+| The expert's competence structure (Task 2) | Mine. The rule that competence must depend on the input and never on the true label is the decision the whole project rests on — an expert who is "reliable whenever the answer is Sports" cannot be discovered by querying, because the answer is exactly what is unknown at query time, so Task 4 would be vacuous. |
+| The acquisition function (Task 4) | Mine. Targeting uncertainty in the *deferral decision* rather than in the classifier's prediction, on the grounds that the classifier is fixed and its competence is already known for free from the out-of-fold pass. |
+| The feature representation | Settled by measurement, not preference — see below. |
+| The evaluation | Mine. The four-case decomposition, and reporting deferral precision alongside accuracy, because accuracy alone rewards handing everything to a good expert. |
+
+I also ran a multi-agent design review at one point and it was a mistake worth
+recording. The agents had shell access and interpreted "design this" as "go and
+experiment", so they spent their budget computing lexical statistics on AG News
+and returned nothing usable; two of four died outright. The replacement — hand
+them the measurements and forbid running code — worked, but by then I had already
+settled the design from the measurements myself. The lesson is that an agent
+asked an open-ended design question will go looking for data, and if it has a
+shell it will find some.
+
 ## What was checked by hand
 
 - The stratified folds were checked to be disjoint, complete, and class-balanced.
@@ -94,6 +116,19 @@ answer the brief exists to prevent.
 - Project 2's two ALE routes were checked against each other; the closed-form
   softmax derivative and the finite-difference estimate agree to 1.5e-4.
 - The PDP was checked against an independent hand computation.
+- Project 3's classifier scored 3,403 errors in-sample against 11,350
+  out-of-fold. Every downstream target uses the out-of-fold pass; the in-sample
+  figure would have understated classifier failure by 3.3x and taught the
+  deferral model that the classifier almost never needs help.
+- Project 3's feature representation was chosen by measurement: the classifier's
+  own top-two margin predicts its correctness at AUC 0.848, beating all 50,000
+  TF-IDF features (0.801). The compact SVD-100 + confidence representation scores
+  0.855 in 103 dimensions, which is what makes a few hundred expert queries
+  enough to fit anything at all.
+- Project 3's headline result was checked for the null case and one was found and
+  kept: the second expert shows no separation between any query strategy. That
+  narrows the claim from "choosing questions beats random" to "choosing questions
+  helps when the expert's competence is visible in the available features".
 - Four bugs surfaced during verification of Project 1 and were fixed: a misleading error
   message on very small files, a crash when the default `k` grid exceeded the
   rows available in a fold, a hardcoded claim in the AutoML warning text that

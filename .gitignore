@@ -181,3 +181,9 @@ cython_debug/
 
 # Uploaded datasets and generated figures
 /media/project1/
+
+# Project 3 build artefacts. baseline.pkl and world.pkl are heavy intermediates
+# rebuilt by `manage.py prepare_project3`; only app.pkl is small enough to ship.
+project3/cache/baseline.pkl
+project3/cache/world.pkl
+project3/cache/experiments.pkl

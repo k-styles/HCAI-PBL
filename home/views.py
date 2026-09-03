@@ -1,6 +1,6 @@
 from django.shortcuts import render
 
-from .own_work import REQUIREMENTS, audit
+from .own_work import REQUIREMENTS, STATES, summary
 
 # ══════════════════════════════════════════════════════════════════════════
 # OWN WORK REQUIRED -- Project 1, Task 1
@@ -31,10 +31,12 @@ PROJECTS = [
               "ask what would have to change to flip a prediction, and see what each "
               "measurement actually does.",
      "state": "done"},
-    {"name": "Project 3", "url_name": None,
+    {"name": "Project 3", "url_name": "project3:index",
      "subject": "Active Learning for Learning-to-Defer",
-     "blurb": "Deciding when the machine should answer and when it should ask a person.",
-     "state": "todo"},
+     "blurb": "News topic labelling where the system may answer or hand over to a human "
+              "expert — and has to work out, from a small number of questions, when "
+              "handing over is actually worth it.",
+     "state": "wip"},
     {"name": "Project 4", "url_name": None,
      "subject": "Preference elicitation",
      "blurb": "Comparing two ways of asking someone what they like.",
@@ -52,9 +54,9 @@ def own_work(request):
     The audit re-reads each named file and checks its marker comment survives,
     so this page reports the state of the code rather than a claim about it.
     """
-    checked = audit()
+    checked, counts = summary()
     return render(request, "home/own_work.html", {
-        "checked": checked,
+        "checked": [(r, state, STATES[state]) for r, state in checked],
         "total": len(REQUIREMENTS),
-        "failing": [r for r, state in checked if state != "ok"],
+        "counts": counts,
     })

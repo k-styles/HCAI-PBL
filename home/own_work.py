@@ -77,6 +77,27 @@ REQUIREMENTS = [
                "no ALE package — the imports at the top of the file are the whole story."),
 
     Requirement(
+        project=3, task="Task 2", kind="implement",
+        quote="Design and implement at least one simulated expert. Analyze its strengths "
+              "and weaknesses on the dataset and report its accuracy on the test set.",
+        where="project3/expert.py",
+        answer="The expert's competence is a function of the input text, not of the true "
+               "label. That distinction is the whole game: an expert who is reliable "
+               "wherever the label happens to be Sports could never be discovered by "
+               "Task 4, because at query time the label is exactly what is unknown."),
+
+    Requirement(
+        project=3, task="Task 4", kind="choose",
+        quote="Choose an active learning strategy for querying the expert. The goal is to "
+              "efficiently learn when deferral is beneficial. Justify your choice and "
+              "report the results using metrics of your choice.",
+        where="project3/acquisition.py",
+        answer="Pending: the acquisition function targets uncertainty in the deferral "
+               "decision rather than in the classifier's own prediction, which is the "
+               "instinct to resist here — the classifier's hardest documents are not "
+               "the ones where handing over helps most."),
+
+    Requirement(
         project=2, task="Task 5", kind="choose",
         quote="For ALE, you will need partial derivatives. For which model can you "
               "compute them exactly? For which do you have to use a discretization?",
@@ -93,16 +114,31 @@ def for_project(number):
     return [r for r in REQUIREMENTS if r.project == number]
 
 
+# Three outcomes, and the difference matters. "pending" is honest work not yet
+# done on a project still in progress; "broken" means a marked block was deleted
+# or moved and something that was satisfied no longer is. Collapsing them into
+# one failure state would make an unfinished project look like a regression.
+STATES = {"ok": "ok", "pending": "not written yet", "broken": "marker missing"}
+
+
 def audit():
     """Check every claimed file exists and still carries its marker comment."""
     report = []
     for r in REQUIREMENTS:
         path = Path(settings.BASE_DIR) / r.where
         if not path.exists():
-            state = "missing file"
+            state = "pending"
         elif MARKER not in path.read_text(errors="ignore"):
-            state = "marker gone"
+            state = "broken"
         else:
             state = "ok"
         report.append((r, state))
     return report
+
+
+def summary():
+    checked = audit()
+    counts = {"ok": 0, "pending": 0, "broken": 0}
+    for _, state in checked:
+        counts[state] += 1
+    return checked, counts

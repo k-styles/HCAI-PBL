@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'project3/style.css' %}">{% endblock %}
+{% block content %}
+<div class="box">
+    <div class="title-container"><div class="title">Not built yet</div></div>
+    <div class="p3-body">
+        <div class="p3-note warn">
+            <p>Project 3 trains a classifier on 120,000 news articles and runs several
+            hundred simulated experiments. That takes a few minutes, so it is done once and
+            cached rather than on a page load.</p>
+            <p>Run this from the repository root, then reload:</p>
+            <pre class="p3-pre">python manage.py prepare_project3</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block script %}{% endblock script %}
