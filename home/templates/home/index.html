@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load assets %}
 
 {% block extra_css %}
-        <link rel="stylesheet" href="{% static 'home/style.css' %}">
+        <link rel="stylesheet" href="{% asset 'home/style.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -90,10 +91,10 @@
                 </a>
             </div>
 
-            <p class="hub-foot">
-                <a href="{% url 'home:own_work' %}">What the briefs require us to write ourselves &rarr;</a>
-                {% if debug %}<br><a href="{% url 'home:notes' %}">Development notes &rarr;</a>{% endif %}
-            </p>
+            <div class="hub-foot">
+                <a href="{% url 'home:own_work' %}">What the briefs require us to write ourselves</a>
+                {% if debug %}<a class="dim" href="{% url 'home:notes' %}">Development notes</a>{% endif %}
+            </div>
         </div>
     </div>
 </div>

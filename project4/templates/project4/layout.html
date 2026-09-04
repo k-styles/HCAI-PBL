@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load assets %}
 {% load p4_glossary %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'project4/style.css' %}">
+    <link rel="stylesheet" href="{% asset 'project4/style.css' %}">
 {% endblock %}
 
 {% block content %}

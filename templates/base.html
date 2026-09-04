@@ -1,9 +1,10 @@
 {% load static %}
+{% load assets %}
 
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <link rel= "stylesheet" href="{% static 'style.css' %}">
+        <link rel= "stylesheet" href="{% asset 'style.css' %}">
         {% block extra_css %}{% endblock %}
         <link rel="shortcut icon" href="{% static 'favicon/favicon.ico' %}">
         <title>HCAI project</title>

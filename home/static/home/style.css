@@ -71,8 +71,20 @@ a.hub-card:hover { border-color: #275CB2; box-shadow: 0 4px 14px rgba(39,92,178,
 
 .hub-state.done { background: #E4F1E9; color: #1E6650; }
 .hub-state.todo { background: #EEF1F6; color: #7C89A2; }
-.hub-foot { text-align: center; margin-top: 22px; font-size: 14px; }
-.hub-foot a { color: #275CB2; }
+/* Two plain underlined links stacked with a <br> read as leftover markup next
+   to the cards above, so they are pills like the project navigations use. */
+.hub-foot {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    margin: 26px 0 4px;
+}
+.hub-foot a {
+    padding: 8px 18px; border-radius: 999px;
+    border: 1px solid #C9D5E8; background: #F5F8FD; color: #34486E;
+    font-size: 14px; text-decoration: none;
+    transition: background .12s ease, border-color .12s ease;
+}
+.hub-foot a:hover { background: #E7EEF9; border-color: #B9CBE8; }
+.hub-foot a.dim { border-style: dashed; color: #7A879E; }
 
 /* ---- our own work ---- */
 .ow-alert {
@@ -134,7 +146,7 @@ a.hub-card:hover { border-color: #275CB2; box-shadow: 0 4px 14px rgba(39,92,178,
 /* ---- the written deliverables, on the hub ---- */
 .hub-docs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
     gap: 12px;
     margin: 0 auto;
     max-width: 1000px;

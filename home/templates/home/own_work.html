@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load assets %}
 
 {% block extra_css %}
-        <link rel="stylesheet" href="{% static 'home/style.css' %}">
+        <link rel="stylesheet" href="{% asset 'home/style.css' %}">
 {% endblock %}
 
 {% block content %}
