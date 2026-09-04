@@ -1,0 +1,121 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}Project 4 &middot; Preference elicitation{% endblock %}
+{% block lede %}Two ways of asking a new user what they like, and a study designed to
+find out which one works better per minute of their time.{% endblock %}
+
+{% block region %}
+
+<div class="p4-gate">
+    <div class="p4-gate-card">
+        <div class="p4-gate-tag">Tasks 1&ndash;3</div>
+        <h2>The written report</h2>
+        <p>The feature representation and why those twenty dimensions
+            {% info "feature-vector" %}, the extension of Bradley&ndash;Terry to full
+            rankings {% info "plackett-luce" %}, and the complete design of the user
+            study &mdash; hypotheses, sample size, exclusions, analysis plan, ethics.</p>
+        {% if has_report %}
+            <a href="{% url 'project4:report' %}" target="_blank" rel="noopener">
+                <button type="button" class="p4-btn">Download the PDF</button></a>
+        {% else %}
+            <p class="p4-missing">The PDF has not been built yet. Run
+                <code>latexmk -pdf project4/report/project4-report.tex</code>.</p>
+        {% endif %}
+    </div>
+
+    <div class="p4-gate-card accent">
+        <div class="p4-gate-tag">Task 4</div>
+        <h2>Start the study</h2>
+        <p>The participant-facing interface. You will be assigned one of the two
+            designs {% info "designs" %} at random, spend {{ minutes }} minutes on
+            {% term "elicitation" "preference tasks" %}, then answer
+            {{ holdout }} {% term "holdout" "held-out comparisons" %} that score how
+            well your answers were understood.</p>
+        {% if live %}
+            <p class="p4-resume">You have a run in progress
+                (<code>{{ live.token }}</code>, {{ live.get_arm_display }}).</p>
+            <a href="{% url 'project4:task' %}"><button type="button" class="p4-btn">Continue</button></a>
+        {% else %}
+            <a href="{% url 'project4:start' %}"><button type="button" class="p4-btn">Read the consent form</button></a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="p4-facts">
+    <div class="p4-fact"><div class="k">{% term "movies" "films in the pool" %}</div><div class="v">{{ films }}</div></div>
+    <div class="p4-fact"><div class="k">{% term "feature-vector" "feature dimensions" %}</div><div class="v">{{ dims }}</div></div>
+    <div class="p4-fact"><div class="k">Design 2 set size</div><div class="v">{{ rank_size }}</div></div>
+    <div class="p4-fact"><div class="k">Runs completed here</div><div class="v">{{ completed }}</div></div>
+</div>
+
+<div class="p4-card">
+    <h2>The problem {% info "cold-start" %}</h2>
+    <p class="p4-sub">Why a recommender cannot start by watching you.</p>
+    <p>Every recommender you have used learned from millions of past ratings. The IMDB
+        5000 dataset contains none &mdash; no user has rated anything in it. That is not
+        a gap in the dataset, it is the situation of every genuinely new user, and the
+        only way out is to ask.</p>
+    <p>You will not answer two hundred questions, so the system gets perhaps twenty.
+        The model is that each film is a vector <em>x</em> of
+        {% term "feature-vector" "twenty features" %} and each person a vector
+        <em>w</em> of {% term "preference-vector" "twenty weights" %}, with
+        {% term "utility" "utility U(x) = wᵀx" %}. Elicitation is the business of
+        recovering <em>w</em> from a handful of answers.</p>
+</div>
+
+<div class="p4-card">
+    <h2>The two things being compared {% info "designs" %}</h2>
+    <p class="p4-sub">Neither is obviously better, which is what makes the study worth running.</p>
+    <div class="p4-versus">
+        <div>
+            <h3>Design 1 &mdash; pairwise choice</h3>
+            <p>Two films, pick one, repeat. Each answer is small but it is quick and
+                almost impossible to get wrong. Modelled by
+                {% term "bradley-terry" "Bradley&ndash;Terry" %} directly.</p>
+        </div>
+        <div>
+            <h3>Design 2 &mdash; rank ten</h3>
+            <p>Ten films, dragged into order {% info "ranking" %}. One answer carries
+                far more, but it is slow and the middle of a list of ten is genuinely
+                hard. Needs the {% term "plackett-luce" "Plackett&ndash;Luce" %}
+                extension.</p>
+        </div>
+    </div>
+    <p>A ranking of ten carries roughly sixty times the
+        {% term "fisher" "information" %} of one pairwise comparison &mdash; which
+        looks decisive until you fix the budget instead of the task count. Eight
+        minutes buys 80 comparisons or 5 rankings, and the accumulated information
+        then ties almost exactly.</p>
+    <p>What separates them is <em>where</em> that information points. Eighty
+        comparisons touch 160 films; five rankings touch 50, and the 45 comparisons
+        inside one ranking all live in the span of those ten. The result is a
+        log-determinant 17.6 nats lower and a smallest eigenvalue six times smaller
+        &mdash; directions of taste that ranking simply never constrains. A simulation
+        of 120 participants per condition confirms it: pairwise ties when ranking is
+        assumed flawless, and wins as soon as people get careless down the list.</p>
+    <p class="p4-foot">This reverses the hypothesis the project started with, which is
+        why both arms get the same {% term "confound" "eight-minute budget" %} rather
+        than the same number of tasks, and why the direction was written down before
+        any participant is recruited. The full argument is in the PDF.</p>
+</div>
+
+<div class="p4-card">
+    <h2>What Task 1 settled on</h2>
+    <p class="p4-sub">{{ dims }} dimensions, and a rule for what does not get one.</p>
+    <p>A genre earns a dimension only if two randomly drawn films actually differ on
+        it &mdash; probability 2p(1&minus;p) for prevalence p. Requiring one informative
+        pair in ten puts the cut at {{ threshold|floatformat:3 }} and admits
+        {{ genres|length }} genres.</p>
+    <div class="p4-chips">
+        {% for g in genres %}<span class="p4-chip in">{{ g }}</span>{% endfor %}
+        {% for g in dropped %}<span class="p4-chip out">{{ g }}</span>{% endfor %}
+    </div>
+    <p class="p4-foot">Greyed out: below the cut. Also excluded &mdash; director and cast
+        (2,398 directors, and two random films share one about once in a thousand times,
+        so those weights are {% term "identifiability" "unidentifiable" %} at any budget
+        a participant would tolerate), and budget, gross and Facebook likes, which are
+        not on the card the participant sees.
+        <a href="{% url 'project4:features' %}">All {{ dims }} dimensions &rarr;</a></p>
+</div>
+{% endblock %}

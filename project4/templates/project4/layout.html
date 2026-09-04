@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load p4_glossary %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'project4/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <div class="title-container">
+        <div class="title">{% block heading %}{% endblock %}</div>
+    </div>
+    <p class="p4-lede">{% block lede %}{% endblock %}</p>
+
+    {% block nav %}
+    <nav class="p4-nav">
+        <a class="quiet" href="{% url 'home:index' %}">&larr; Hub</a>
+        <a class="quiet" href="{% url 'project3:index' %}">Project 3</a>
+        <a href="{% url 'project4:index' %}" class="{% if page == 'landing' %}current{% endif %}">Landing page</a>
+        <a href="{% url 'project4:features' %}" class="{% if page == 'features' %}current{% endif %}">1 &middot; The features</a>
+        <a href="{% url 'project4:start' %}" class="{% if page == 'consent' or page == 'study' %}current{% endif %}">4 &middot; The study</a>
+        <a href="{% url 'project4:responses' %}" class="{% if page == 'responses' %}current{% endif %}">What has been collected</a>
+        <a href="{% url 'project4:explain_index' %}" class="{% if page == 'explain' %}current{% endif %}">What do these words mean?</a>
+    </nav>
+    {% endblock %}
+
+    <div class="p4-body">
+        {% for requirement in page_requirements %}
+            <div class="p4-own">
+                <div class="p4-own-head">Our own work &mdash; Project 4, {{ requirement.task }}</div>
+                <blockquote>{{ requirement.quote }}</blockquote>
+                <p>{{ requirement.answer }}</p>
+                <p class="p4-own-where">In <code>{{ requirement.where }}</code>, under a marked
+                    block. <a href="{% url 'home:own_work' %}">All such requirements &rarr;</a></p>
+            </div>
+        {% endfor %}
+
+        {% block region %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}{% endblock script %}

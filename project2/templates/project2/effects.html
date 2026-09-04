@@ -1,4 +1,5 @@
 {% extends 'project2/layout.html' %}
+{% load p2_glossary %}
 
 {% block heading %}What does one measurement do?{% endblock %}
 {% block lede %}Two views of the same question, which disagree in a way worth understanding.{% endblock %}
@@ -31,17 +32,16 @@
 
 <div class="p2-split">
     <div class="p2-card">
-        <h2>Partial dependence</h2>
+        <h2>Partial dependence{% info "pdp" %}</h2>
         <p>Force every penguin in the data to this value of {{ curve.pretty }}, ask the model,
         and average the answers.</p>
-        <p>Its weakness is built in: flipper length and body mass move together in real
-        penguins, so setting a flipper to 230&nbsp;mm while leaving body mass alone asks the
+        <p>Its weakness is built in: {% term "correlation" "flipper length and body mass move together" %} in real penguins, so setting a flipper to 230&nbsp;mm while leaving body mass alone asks the
         model about an animal that does not exist. The curve is an average over impossible
         penguins as much as real ones.</p>
     </div>
 
     <div class="p2-card">
-        <h2>Accumulated local effects</h2>
+        <h2>Accumulated local effects{% info "ale" %}</h2>
         <p>Split the range into bins and, inside each one, use only the penguins whose own
         {{ curve.pretty }} falls in that bin. Add the local changes up as you move along.</p>
         <p>Nothing impossible is ever evaluated, which is the whole advantage. The price is

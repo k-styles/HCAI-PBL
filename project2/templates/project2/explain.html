@@ -1,0 +1,29 @@
+{% extends 'project2/layout.html' %}
+{% block heading %}{{ topic.title }}{% endblock %}
+{% block lede %}{{ topic.short }}{% endblock %}
+{% block region %}
+<div class="p2-explain">
+    {% for heading, paragraphs in topic.sections %}
+        <div class="p2-card"><h2>{{ heading }}</h2>
+            {% for para in paragraphs %}<p>{{ para }}</p>{% endfor %}</div>
+    {% endfor %}
+    {% if topic.advice %}
+        <div class="p2-note calm"><p><strong>In practice:</strong> {{ topic.advice }}</p></div>
+    {% endif %}
+    {% if related %}
+        <div class="p2-card"><h2>Related</h2>
+            <div class="p2-glossary">
+                {% for other in related %}
+                    <a class="p2-entry" href="{% url 'project2:explain' other.slug %}">
+                        <span class="p2-entry-title">{{ other.title }}</span>
+                        <span class="p2-entry-short">{{ other.short }}</span>
+                    </a>
+                {% endfor %}
+            </div></div>
+    {% endif %}
+    <div class="p2-actions">
+        <a href="{% url 'project2:explain_index' %}"><button type="button" class="p2-btn ghost">All explanations</button></a>
+        <a href="{% url 'project2:index' %}"><button type="button" class="p2-btn">Back to the app</button></a>
+    </div>
+</div>
+{% endblock %}

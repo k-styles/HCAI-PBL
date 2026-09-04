@@ -37,10 +37,11 @@ PROJECTS = [
               "expert — and has to work out, from a small number of questions, when "
               "handing over is actually worth it.",
      "state": "wip"},
-    {"name": "Project 4", "url_name": None,
+    {"name": "Project 4", "url_name": "project4:index",
      "subject": "Preference elicitation",
-     "blurb": "Comparing two ways of asking someone what they like.",
-     "state": "todo"},
+     "blurb": "Two ways of asking what films someone likes \u2014 pick one of two, or rank "
+              "ten \u2014 and a study designed to find out which asks better.",
+     "state": "done"},
 ]
 
 

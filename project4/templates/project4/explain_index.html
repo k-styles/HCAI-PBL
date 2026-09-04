@@ -1,0 +1,21 @@
+{% extends 'project4/layout.html' %}
+
+{% block heading %}What do these words mean?{% endblock %}
+{% block lede %}{{ count }} explanations, in plain language. Every one of them is also
+linked from the place in the interface where the word first appears.{% endblock %}
+
+{% block region %}
+{% for name, topics in groups.items %}
+    <div class="p4-card">
+        <h2>{{ name }}</h2>
+        <div class="p4-glossary">
+            {% for topic in topics %}
+                <a class="p4-entry" href="{% url 'project4:explain' topic.slug %}">
+                    <span class="p4-entry-title">{{ topic.title }}</span>
+                    <span class="p4-entry-short">{{ topic.short }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}

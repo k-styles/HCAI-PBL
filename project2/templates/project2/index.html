@@ -1,8 +1,9 @@
 {% extends 'project2/layout.html' %}
+{% load p2_glossary %}
 
 {% block heading %}Trading accuracy against readability{% endblock %}
-{% block lede %}Equation (1) says a model should be judged on what it gets right and on how
-much of it you have to read. The slider decides how much the second one counts.{% endblock %}
+{% block lede %}Equation (1) says a model should be judged on what it gets right and on how much of it
+you have to {% term "complexity" "read" %}. The slider decides how much the second one counts.{% endblock %}
 
 {% block region %}
 <div class="p2-facts">
@@ -17,14 +18,13 @@ much of it you have to read. The slider decides how much the second one counts.{
 </div>
 
 <div class="p2-note">
-    <p>Trained on {{ penguins.train|length }} penguins, scored on the {{ penguins.test|length }}
-    held back. {{ penguins.dropped }} of the 344 rows were dropped for missing values.
+    <p>Trained on {{ penguins.train|length }} {% term "penguins" "penguins" %}, scored on the {{ penguins.test|length }} {% term "test-set" "held back" %}. {{ penguins.dropped }} of the 344 rows were dropped for missing values.
     Every model on this page shares one split, so their accuracies are comparable.</p>
 </div>
 
 {% if kind == 'tree' %}
     <div class="p2-card">
-        <h2>The tree, as sentences</h2>
+        <h2>The tree, as sentences{% info "tree" %}</h2>
         <p class="p2-sub">One line per path from the root to a decision. This is the form
             that answers &ldquo;why did it say that&rdquo; without tracing a diagram.</p>
         <ol class="p2-rules">
@@ -50,8 +50,8 @@ much of it you have to read. The slider decides how much the second one counts.{
     </div>
 {% else %}
     <div class="p2-card">
-        <h2>What the model consults</h2>
-        <p class="p2-sub">Ω counts the features with a non-zero coefficient. A feature with
+        <h2>What the model consults{% info "sparsity" %}</h2>
+        <p class="p2-sub">{% term "complexity" "Ω" %} counts the features with a non-zero {% term "coefficient" "coefficient" %}. A feature with
             a coefficient of zero costs the reader nothing, which is the point.</p>
         <div class="p2-scroll">
             <table class="p2-table">
@@ -72,13 +72,13 @@ much of it you have to read. The slider decides how much the second one counts.{
                 </tbody>
             </table>
         </div>
-        <p class="p2-foot">Coefficients are on standardised features, so their sizes are
+        <p class="p2-foot">{% term "coefficient" "Coefficients" %} are on {% term "scaling" "standardised" %} features, so their sizes are
             comparable across columns measured in millimetres and grams.</p>
     </div>
 {% endif %}
 
 <div class="p2-card">
-    <h2>What the slider can actually reach</h2>
+    <h2>What the slider can actually reach{% info "reachable" %}</h2>
     <p class="p2-sub">Each model is a straight line in λ with slope −Ω, so choosing the best
         one is taking the highest line. Only models on the upper edge are ever highest &mdash;
         the rest are beaten at every λ by something simpler, something better, or a blend.</p>

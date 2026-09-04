@@ -1,4 +1,5 @@
 {% extends 'project2/layout.html' %}
+{% load p2_glossary %}
 
 {% block heading %}What would have had to be different?{% endblock %}
 {% block lede %}Pick a penguin and a species you would rather the model had said, and see the
@@ -6,7 +7,7 @@ smallest changes that would have got you there.{% endblock %}
 
 {% block region %}
 <div class="p2-card">
-    <h2>Choose a penguin and a target</h2>
+    <h2>Choose a penguin and a target{% info "counterfactual" %}</h2>
     <p class="p2-sub">The counterfactuals come from the model selected above &mdash;
         {% if kind == 'tree' %}the decision tree{% else %}logistic regression{% endif %}
         at Ω = {{ winner.omega }}. Change the model or λ and these change with it.</p>
@@ -69,7 +70,7 @@ smallest changes that would have got you there.{% endblock %}
 {% elif found %}
     <div class="p2-card">
         <h2>The {{ found|length }} closest ways to get {{ target }}</h2>
-        <p class="p2-sub">Ranked by MAD-weighted L¹ distance: each feature's change is divided
+        <p class="p2-sub">Ranked by {% term "mad" "MAD-weighted L¹ distance" %}: each feature's change is divided
             by that feature's own median absolute deviation, so millimetres and grams are
             compared on equal terms. Lower is a smaller ask.</p>
 

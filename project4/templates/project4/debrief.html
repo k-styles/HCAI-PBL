@@ -1,0 +1,103 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}What your answers said{% endblock %}
+{% block lede %}A participant who has just spent eight minutes is owed an answer, not a
+thank-you page.{% endblock %}
+
+{% block region %}
+<div class="p4-facts">
+    <div class="p4-fact"><div class="k">Design</div><div class="v small">{{ participant.get_arm_display }}</div></div>
+    <div class="p4-fact"><div class="k">Tasks answered</div><div class="v">{{ result.tasks }}</div></div>
+    <div class="p4-fact"><div class="k">Time spent</div><div class="v">{{ result.seconds|floatformat:0 }}s</div></div>
+    {% if result.score %}
+        <div class="p4-fact"><div class="k">{% term "holdout" "Held-out accuracy" %}</div>
+            <div class="v {% if result.score.accuracy > 0.5 %}good{% else %}bad{% endif %}">{{ result.score.accuracy|percent }}</div></div>
+        <div class="p4-fact"><div class="k">{% term "log-loss" "Log loss" %}</div>
+            <div class="v {% if result.score.log_loss < 0.693 %}good{% else %}bad{% endif %}">{{ result.score.log_loss|floatformat:3 }}</div></div>
+    {% endif %}
+</div>
+
+{% if result.score %}
+    <div class="p4-note {% if result.score.log_loss < 0.693 %}calm{% else %}warn{% endif %}">
+        <p>A model that has learned nothing answers 50/50 every time and scores a log
+            loss of <b>0.693</b>. Yours scored <b>{{ result.score.log_loss|floatformat:3 }}</b>
+            on {{ result.score.n }} comparisons it was never fitted on.
+            {% if result.score.log_loss < 0.693 %}That is better than chance, so your
+                answers carried real information about your taste.
+            {% else %}That is no better than chance &mdash; which happens with very few
+                answers, or answers that were not consistent with a single linear taste.
+            {% endif %}</p>
+        <p>This one number is the study's primary outcome
+            {% info "holdout" %}. In the real study it is compared across the two arms,
+            not read on its own.</p>
+    </div>
+{% endif %}
+
+<div class="p4-card">
+    <h2>Your fitted taste {% info "preference-vector" %}</h2>
+    <p class="p4-sub">The six weights furthest from zero, out of twenty.</p>
+    {% for row in profile %}
+        <div class="p4-weight">
+            <span class="n">{{ row.name }}</span>
+            <span class="track"><i class="{% if row.likes %}up{% else %}down{% endif %}"
+                    style="width: {{ row.width|floatformat:1 }}%"></i></span>
+            <span class="v">{{ row.weight|floatformat:2 }}</span>
+        </div>
+    {% endfor %}
+    <p class="p4-foot">Fitted by {% term "map" "maximum a posteriori estimation" %} with a
+        {% term "prior" "weak prior" %} pulling toward zero &mdash;
+        {{ result.fit.steps }} gradient steps, final gradient norm
+        {{ result.fit.gradient|floatformat:8 }}. The pull toward zero is why these look
+        moderate even if you were decisive; with twenty answers and twenty dimensions,
+        confident weights would be an overstatement.</p>
+</div>
+
+<div class="p4-card">
+    <h2>What we would now recommend</h2>
+    <p class="p4-sub">The five highest-{% term "utility" "utility" %} films in the pool
+        under your fitted <em>w</em>.</p>
+    <div class="p4-picks">
+        {% for card in picks %}
+            <div class="p4-pick">
+                <div class="p4-film-title">{{ card.title }}</div>
+                <div class="p4-film-year">{{ card.year }} &middot; {{ card.duration }} min &middot; {{ card.score }} on IMDB</div>
+                <div class="p4-film-genres">{% for g in card.genres %}<span>{{ g }}</span>{% endfor %}</div>
+            </div>
+        {% endfor %}
+    </div>
+    <p class="p4-foot">This is the point of the exercise. Whether these look right to you
+        is the informal version of the held-out score above &mdash; and the reason the
+        study needs the formal one is that "looks right to me" cannot be compared across
+        150 participants.</p>
+</div>
+
+<div class="p4-card">
+    <h2>Consistency check {% info "attention-check" %}</h2>
+    <p class="p4-sub">Two held-out pairs came round twice, with the films swapped
+        left to right.</p>
+    {% if result.consistency %}
+        <p>You answered the same way on
+            <b>{{ result.consistency|length }}</b> repeat{{ result.consistency|pluralize }},
+            agreeing on
+            {% for a in result.consistency %}{% if a %}<span class="p4-yes">yes</span>{% else %}<span class="p4-no">no</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            {% if result.excluded %}Disagreeing on both is the pre-registered exclusion
+                criterion, so in the real study this run would be dropped before analysis.
+            {% else %}That clears the pre-registered exclusion criterion.{% endif %}</p>
+    {% else %}
+        <p>No repeats were reached &mdash; the held-out block was not completed.</p>
+    {% endif %}
+    <p class="p4-foot">Deciding this rule in advance is the whole point. An exclusion rule
+        written after seeing the results is a way of removing whoever spoiled them.</p>
+</div>
+
+<div class="p4-stopline">
+    <span>Run <code>{{ participant.token }}</code>{% if participant.preview %} &middot;
+        <b>preview budget</b>, flagged on the row so it can be filtered out of any
+        analysis{% endif %}.</span>
+    <span class="p4-actions">
+        <a href="{% url 'project4:responses' %}"><button type="button" class="p4-btn ghost small">See all runs</button></a>
+        <a href="{% url 'project4:debrief' %}?clear=1"><button type="button" class="p4-btn small">Finish and start over</button></a>
+    </span>
+</div>
+{% endblock %}

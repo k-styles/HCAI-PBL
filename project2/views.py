@@ -2,9 +2,12 @@ import uuid
 
 from django.shortcuts import redirect, render
 
+from django.http import Http404
+
 from home.own_work import for_project
 
 from . import counterfactuals, data, effects, models_lab, plots, treeview
+from .explain import TOPICS, groups
 
 SESSION_KEY = "project2_choice"
 DEFAULT = {"kind": "tree", "lam": 0.02}
@@ -203,3 +206,19 @@ def feature_effects(request):
         "effects_url": plots.effect_curves(curve, _token(request)),
     })
     return render(request, "project2/effects.html", context)
+
+
+def explain_index(request):
+    return render(request, "project2/explain_index.html",
+                  {"page": "explain", "groups": groups(), "count": len(TOPICS)})
+
+
+def explain(request, slug):
+    topic = TOPICS.get(slug)
+    if topic is None:
+        raise Http404(f"No explanation for '{slug}'.")
+    return render(request, "project2/explain.html", {
+        "page": "explain",
+        "topic": topic,
+        "related": [TOPICS[s] for s in topic.related if s in TOPICS],
+    })

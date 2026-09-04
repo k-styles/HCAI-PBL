@@ -1,0 +1,81 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}Before you start{% endblock %}
+{% block lede %}The consent form a real participant would see, and one question used to
+balance the two groups.{% endblock %}
+
+{% block region %}
+{% if error %}<div class="p4-note warn"><p>{{ error }}</p></div>{% endif %}
+
+<form method="post" class="p4-consent">
+    {% csrf_token %}
+
+    <div class="p4-card">
+        <h2>What this study is {% info "consent" %}</h2>
+        <p class="p4-sub">Comparing two ways of learning someone's film taste.</p>
+        <p>You will be shown films from a pool of well-known titles and asked which you
+            would rather watch. Depending on which group you are placed in, that is
+            either a series of choices between two films, or a series of lists of ten to
+            put in order. After {{ minutes }} minutes you will answer
+            {{ holdout }} further comparisons, and then be shown what your answers
+            implied about your taste.</p>
+
+        <h3>What is recorded</h3>
+        <p>Which group you were placed in, which films you chose or how you ordered them,
+            how long each task took, and your answer to the question below. Nothing that
+            identifies you &mdash; no name, no email, no address, and no cookie beyond the
+            one that keeps this page working.</p>
+
+        <h3>What you can do</h3>
+        <p>Stop at any point using the button on the study page; the run ends there and
+            what you have done so far is fitted anyway. In the real study, withdrawing
+            deletes your data and you are paid regardless.</p>
+
+        <h3>Why the group is chosen at random</h3>
+        <p>So that the difference between the two groups is the design and not the people
+            in them. See {% term "between-subjects" "between subjects" %} for why you do
+            not do both.</p>
+
+        <label class="p4-check">
+            <input type="checkbox" name="consent" value="1">
+            <span>I have read the above, I am 18 or over, and I agree to take part.</span>
+        </label>
+    </div>
+
+    <div class="p4-card">
+        <h2>One question first</h2>
+        <p class="p4-sub">Used to balance the groups, not to screen you out.</p>
+        <p>How often do you watch a film? Someone who watches several a week has firmer
+            opinions and will answer differently from someone who watches one a month, so
+            the real study blocks the randomisation on this
+            {% info "between-subjects" %}.</p>
+        <div class="p4-radios">
+            {% for value, label in frequencies %}
+                <label><input type="radio" name="frequency" value="{{ value }}"
+                       {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="p4-card marker">
+        <h2>Not part of the participant's view</h2>
+        <p class="p4-sub">Two switches for whoever is marking this, so the interface can
+            be seen end to end without sitting through the real protocol.</p>
+        <div class="p4-radios inline">
+            <label><input type="radio" name="arm" value="" checked><span>Assign at random, as a participant would be</span></label>
+            <label><input type="radio" name="arm" value="pair"><span>Force Design 1 &mdash; pairwise</span></label>
+            <label><input type="radio" name="arm" value="rank"><span>Force Design 2 &mdash; rank ten</span></label>
+        </div>
+        <label class="p4-check">
+            <input type="checkbox" name="preview" value="1" checked>
+            <span>Short budget (75 seconds instead of {{ minutes }} minutes). The real
+                study uses the full budget; this only exists so the flow can be walked
+                through. It is recorded on the participant row, so preview runs can be
+                filtered out of any analysis.</span>
+        </label>
+    </div>
+
+    <button type="submit" class="p4-btn wide">Begin</button>
+</form>
+{% endblock %}

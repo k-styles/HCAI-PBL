@@ -1,0 +1,50 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}What has been collected{% endblock %}
+{% block lede %}Not part of the participant's journey &mdash; this is the view the person
+running the study needs, and the proof that responses are actually written down.{% endblock %}
+
+{% block region %}
+{% if not rows %}
+    <div class="p4-note"><p>Nothing yet. <a href="{% url 'project4:start' %}">Run the
+        study</a> and this fills in.</p></div>
+{% else %}
+<div class="p4-facts">
+    <div class="p4-fact"><div class="k">Runs started</div><div class="v">{{ total }}</div></div>
+</div>
+
+<div class="p4-card">
+    <h2>One row per participant</h2>
+    <p class="p4-sub">Each fitted independently and scored on their own
+        {% term "holdout" "held-out block" %}.</p>
+    <div class="p4-scroll">
+        <table class="p4-table">
+            <tr><th>Token</th><th>Design</th><th class="num">Tasks</th><th class="num">Seconds</th>
+                <th class="num">Held-out accuracy</th><th class="num">{% term "log-loss" "Log loss" %}</th>
+                <th>{% term "attention-check" "Consistent" %}</th><th>Preview</th></tr>
+            {% for row in rows %}
+                <tr>
+                    <td><code>{{ row.p.token }}</code></td>
+                    <td>{{ row.p.get_arm_display }}</td>
+                    <td class="num">{{ row.result.tasks|default:"0" }}</td>
+                    <td class="num">{{ row.result.seconds|floatformat:0|default:"0" }}</td>
+                    {% if row.result.score %}
+                        <td class="num">{{ row.result.score.accuracy|percent }}</td>
+                        <td class="num {% if row.result.score.log_loss < 0.693 %}p4-yes{% endif %}">{{ row.result.score.log_loss|floatformat:3 }}</td>
+                    {% else %}
+                        <td class="num p4-no">&mdash;</td><td class="num p4-no">not finished</td>
+                    {% endif %}
+                    <td>{% if row.result.consistent %}<span class="p4-yes">yes</span>{% elif row.result.excluded %}<span class="p4-bad">excluded</span>{% else %}<span class="p4-no">&mdash;</span>{% endif %}</td>
+                    <td>{% if row.p.preview %}<span class="p4-no">preview</span>{% else %}<span class="p4-yes">full</span>{% endif %}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <p class="p4-foot">In the real study this table is never looked at until data
+        collection has finished and the analysis has been
+        {% term "power" "pre-registered" %}. Watching the arms diverge and deciding when
+        to stop is how a coin flip becomes a finding.</p>
+</div>
+{% endif %}
+{% endblock %}

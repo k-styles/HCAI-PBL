@@ -1,0 +1,23 @@
+{% extends 'project2/layout.html' %}
+{% block heading %}Plain answers{% endblock %}
+{% block lede %}Every technical word this project uses, explained without assuming you have met
+it before.{% endblock %}
+{% block region %}
+<div class="p2-note">
+    <p>Anywhere a term appears with a small <span class="p2-info-static">i</span> beside it, or
+    underlined, that link lands on the page below that explains it.</p>
+</div>
+{% for group, topics in groups.items %}
+    <div class="p2-card">
+        <h2>{{ group }}</h2>
+        <div class="p2-glossary">
+            {% for topic in topics %}
+                <a class="p2-entry" href="{% url 'project2:explain' topic.slug %}">
+                    <span class="p2-entry-title">{{ topic.title }}</span>
+                    <span class="p2-entry-short">{{ topic.short }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}

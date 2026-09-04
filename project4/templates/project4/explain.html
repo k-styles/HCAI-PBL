@@ -1,0 +1,35 @@
+{% extends 'project4/layout.html' %}
+
+{% block heading %}{{ topic.title }}{% endblock %}
+{% block lede %}{{ topic.short }}{% endblock %}
+
+{% block region %}
+<div class="p4-explain">
+    {% for heading, paragraphs in topic.sections %}
+        <div class="p4-card">
+            <h2>{{ heading }}</h2>
+            {% for paragraph in paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+        </div>
+    {% endfor %}
+
+    {% if topic.advice %}
+        <div class="p4-note calm"><p>{{ topic.advice }}</p></div>
+    {% endif %}
+
+    {% if related %}
+        <div class="p4-card">
+            <h2>Next</h2>
+            <div class="p4-glossary">
+                {% for other in related %}
+                    <a class="p4-entry" href="{% url 'project4:explain' other.slug %}">
+                        <span class="p4-entry-title">{{ other.title }}</span>
+                        <span class="p4-entry-short">{{ other.short }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <p class="p4-foot"><a href="{% url 'project4:explain_index' %}">&larr; All explanations</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}{% if holdout %}Last part{% else %}Which would you rather watch?{% endif %}{% endblock %}
+{% block lede %}{% if holdout %}These {{ total }} comparisons are not used to learn your
+taste &mdash; they are used to check how well it was already learned.
+{% else %}Pick one. There is no right answer and you cannot go back.{% endif %}{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block region %}
+<div class="p4-progress">
+    {% if holdout %}
+        <span class="p4-phase test">{% term "holdout" "Held-out block" %}</span>
+        <span>{{ step.position|add:1 }} of {{ total }}</span>
+        <div class="p4-bar"><i style="width: {% widthratio step.position total 100 %}%"></i></div>
+    {% else %}
+        <span class="p4-phase">Design 1 &middot; {% term "designs" "pairwise choice" %}</span>
+        <span>{{ done }} answered &middot; {{ seconds_left }}s left of your budget</span>
+        <div class="p4-bar"><i style="width: {% widthratio seconds_left budget_seconds 100 %}%"></i></div>
+    {% endif %}
+</div>
+
+<form method="post" class="p4-pair">
+    {% csrf_token %}
+    <input type="hidden" name="phase" value="{{ step.phase }}">
+    <input type="hidden" name="position" value="{{ step.position }}">
+    <input type="hidden" name="repeat_of" value="{{ step.repeat_of|default_if_none:'' }}">
+    {% for card in cards %}<input type="hidden" name="items" value="{{ card.index }}">{% endfor %}
+
+    <div class="p4-pair-grid">
+        {% for card in cards %}
+            <button type="submit" class="p4-film" name="chosen" value="{{ card.index }}">
+                <span class="p4-film-title">{{ card.title }}</span>
+                <span class="p4-film-year">{{ card.year }} &middot; {{ card.duration }} min &middot; {{ card.rating }}{% if card.monochrome %} &middot; black and white{% endif %}</span>
+                <span class="p4-film-genres">{% for g in card.genres %}<span>{{ g }}</span>{% endfor %}</span>
+                <span class="p4-film-stats">
+                    <span><b>{{ card.score }}</b> on IMDB</span>
+                    <span>{{ card.votes }} votes</span>
+                </span>
+                <span class="p4-film-pick">Choose this one</span>
+            </button>
+        {% endfor %}
+    </div>
+
+    {% if not holdout %}
+        <div class="p4-stopline">
+            <span>Stopping early is allowed at any point, and everything you have already
+                answered is still used. The next screen would be the
+                {% term "holdout" "held-out block" %}.</span>
+            <button type="submit" name="stop" value="1" class="p4-btn ghost small">
+                I would rather stop here</button>
+        </div>
+    {% endif %}
+</form>
+
+<p class="p4-hint">The card shows exactly what the model is given
+    {% info "feature-vector" %} &mdash; nothing about a film is hidden from you that the
+    model can see.</p>
+{% endblock %}

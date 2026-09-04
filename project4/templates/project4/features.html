@@ -1,0 +1,100 @@
+{% extends 'project4/layout.html' %}
+{% load p4_glossary %}
+
+{% block heading %}Task 1 &middot; The feature representation{% endblock %}
+{% block lede %}{{ dims }} dimensions over {{ films }} films, and the rule that decided
+what did not get one.{% endblock %}
+
+{% block region %}
+<div class="p4-card">
+    <h2>The rule for genres {% info "identifiability" %}</h2>
+    <p class="p4-sub">A dimension is only worth having if the responses can ever speak to it.</p>
+    <p>Two films are drawn at random. For a genre appearing in a fraction <em>p</em> of
+        the pool, they differ on it with probability 2<em>p</em>(1&minus;<em>p</em>) &mdash;
+        and a pair that agrees on a genre says nothing at all about its weight.
+        Requiring at least one informative pair in ten puts the cut at
+        <b>p &ge; {{ threshold|floatformat:4 }}</b>.</p>
+    <p>Western sits at about 0.02, so roughly one pair in twenty-six is informative about
+        it. Across twenty-five responses that is one observation, which is not enough to
+        estimate anything and is enough for the {% term "prior" "prior" %} to invent
+        something.</p>
+</div>
+
+<div class="p4-card">
+    <h2>What is in <em>x</em> {% info "feature-vector" %}</h2>
+    <p class="p4-sub">Genres as plain 0/1, everything continuous
+        {% term "standardise" "standardised" %}.</p>
+    <div class="p4-scroll">
+        <table class="p4-table">
+            <tr><th>#</th><th>Dimension</th><th>Kind</th><th class="num">Prevalence</th>
+                <th class="num">2p(1&minus;p)</th><th class="num">Mean</th><th class="num">SD</th></tr>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><b>{{ row.label }}</b></td>
+                    <td class="p4-terms">{% if row.genre %}genre flag{% else %}{% if row.sd == 1.0 %}standardised{% else %}indicator{% endif %}{% endif %}</td>
+                    <td class="num">{% if row.genre %}{{ row.prevalence|floatformat:3 }}{% else %}&mdash;{% endif %}</td>
+                    <td class="num">{% if row.informative %}{{ row.informative|floatformat:3 }}{% else %}&mdash;{% endif %}</td>
+                    <td class="num">{{ row.mean|floatformat:3 }}</td>
+                    <td class="num">{{ row.sd|floatformat:3 }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+<div class="p4-card">
+    <h2>What was dropped, and why</h2>
+    <p class="p4-sub">Three separate reasons, only one of them about the genre cut.</p>
+    <h3>Below the informativeness cut</h3>
+    <div class="p4-scroll">
+        <table class="p4-table">
+            <tr><th>Genre</th><th class="num">Prevalence</th><th class="num">2p(1&minus;p)</th>
+                <th class="num">Informative pairs in 25</th></tr>
+            {% for row in dropped %}
+                <tr><td>{{ row.name }}</td><td class="num">{{ row.prevalence|floatformat:4 }}</td>
+                    <td class="num">{{ row.informative|floatformat:4 }}</td>
+                    <td class="num">{% widthratio row.informative 1 25 %}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <h3>Unidentifiable at any realistic budget</h3>
+    <p><code>director_name</code> is 2,398 distinct values and
+        <code>actor_1_name</code>, <code>actor_2_name</code> and <code>actor_3_name</code>
+        add thousands more. Two randomly drawn films share a director well under one time
+        in a thousand, so essentially every response multiplies those weights by zero.
+        They are not weak features; there is no budget at which a participant's answers
+        could ever speak to them.</p>
+
+    <h3>Not on the card</h3>
+    <p><code>budget</code>, <code>gross</code>, the four Facebook-likes columns,
+        <code>aspect_ratio</code>, <code>facenumber_in_poster</code>. Nobody picks a film
+        by its aspect ratio, and if a feature is in <em>x</em> but not in front of the
+        participant, the fit will hand it credit for choices it had nothing to do with.
+        Everything in <em>x</em> appears on the card, and everything on the card is in
+        <em>x</em>.</p>
+</div>
+
+<div class="p4-card">
+    <h2>The pool {% info "movies" %}</h2>
+    <p class="p4-sub">Filtered before anything else.</p>
+    <p>Films with fewer than {{ min_votes }} IMDB votes are dropped, and duplicate titles
+        collapsed, leaving {{ films }}. Somebody comparing two films they have never heard
+        of is not expressing a preference &mdash; they are reading the metadata off the
+        card and guessing, which adds response noise that no model recovers from. It is a
+        {% term "validity" "validity" %} decision, not a data-cleaning one.</p>
+    <div class="p4-picks">
+        {% for card in sample %}
+            <div class="p4-pick">
+                <div class="p4-film-title">{{ card.title }}</div>
+                <div class="p4-film-year">{{ card.year }} &middot; {{ card.duration }} min &middot; {{ card.rating }}</div>
+                <div class="p4-film-genres">{% for g in card.shown %}<span>{{ g }}</span>{% endfor %}</div>
+            </div>
+        {% endfor %}
+    </div>
+    <p class="p4-foot">Continuous features are centred and scaled on this pool:
+        {% for key, pair in scaling.items %}{{ key }} (mean {{ pair.0|floatformat:2 }},
+        sd {{ pair.1|floatformat:2 }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+</div>
+{% endblock %}

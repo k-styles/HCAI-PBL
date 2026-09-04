@@ -92,8 +92,8 @@ REQUIREMENTS = [
               "efficiently learn when deferral is beneficial. Justify your choice and "
               "report the results using metrics of your choice.",
         where="project3/acquisition.py",
-        answer="Pending: the acquisition function targets uncertainty in the deferral "
-               "decision rather than in the classifier's own prediction, which is the "
+        answer="The acquisition function targets uncertainty in the deferral decision "
+               "rather than in the classifier's own prediction, which is the "
                "instinct to resist here — the classifier's hardest documents are not "
                "the ones where handing over helps most."),
 
@@ -107,6 +107,38 @@ REQUIREMENTS = [
                "zero almost everywhere and undefined on the split points, so it has to "
                "go through finite differences across bin edges. Both paths are "
                "implemented and the page says which one produced the curve."),
+
+    Requirement(
+        project=4, task="Task 1", kind="choose",
+        quote="Choose a feature representation that you believe is appropriate for a "
+              "movie recommender system. Justify your choice of features and write a "
+              "method to extract them from the dataset.",
+        where="project4/data.py",
+        answer="20 dimensions, chosen by two rules that have nothing to do with which "
+               "columns describe a film best. A genre earns a dimension only if two random "
+               "films actually differ on it \u2014 probability 2p(1-p), and requiring one "
+               "informative pair in ten puts the cut at p >= 0.053. And a feature the "
+               "participant cannot see on the card cannot have caused their choice, so "
+               "budget, gross and Facebook likes are out. Director and cast are excluded "
+               "not for being weak but for being unidentifiable: 2,398 directors, and two "
+               "random films share one well under once in a thousand times, so essentially "
+               "every response would multiply those weights by zero."),
+
+    Requirement(
+        project=4, task="Task 2", kind="implement",
+        quote="Propose an extension of the Bradley-Terry model capable of modeling a "
+              "ranking of i1 \u227b i2 \u227b \u00b7\u00b7\u00b7 \u227b in instead of a single "
+              "pairwise comparison. Explain and justify your proposed formulation.",
+        where="project4/preference.py",
+        answer="Plackett-Luce: read the ranking as choosing a favourite, then a favourite "
+               "of what remains, each stage being Bradley-Terry widened past two items. It "
+               "is exactly Bradley-Terry at n = 2, and its pairwise marginals are the "
+               "Bradley-Terry probabilities \u2014 which is what lets both interfaces be "
+               "scored against the same held-out comparisons instead of quietly measuring "
+               "two different quantities. Checked numerically in check_marginals rather "
+               "than asserted. The tempting alternative, multiplying all n(n-1)/2 implied "
+               "pairs, is rejected because it counts dependent comparisons repeatedly and "
+               "does not sum to one over the n! orderings."),
 ]
 
 

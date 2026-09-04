@@ -187,3 +187,14 @@ cython_debug/
 project3/cache/baseline.pkl
 project3/cache/world.pkl
 project3/cache/experiments.pkl
+/media/project2/
+/media/project3/
+
+# LaTeX build products. The PDFs are committed because the briefs require them
+# to be downloadable from the interface; the intermediates are not.
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc

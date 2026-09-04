@@ -105,6 +105,56 @@ settled the design from the measurements myself. The lesson is that an agent
 asked an open-ended design question will go looking for data, and if it has a
 shell it will find some.
 
+## Project 4 specifically
+
+Task 1 is a design decision and was made here, not delegated. The feature set is
+governed by the elicitation budget rather than by descriptive power: the rule
+that a genre earns a dimension only when 2p(1-p) clears one informative pair in
+ten, and the exclusion of director and cast as unidentifiable rather than weak,
+are the arguments the grade rests on and they were reasoned out before any code
+was written. The threshold is computed from `PAIR_INFORMATIVENESS` in
+`project4/data.py` rather than hardcoded, so the prose and the code cannot drift.
+
+Task 2 likewise. The Plackett-Luce derivation, the three justifications for it,
+and the specific rejection of the naive "split a ranking into all 45 pairs"
+alternative are the substance of the task. An LLM will produce the Plackett-Luce
+formula on request; what it will not produce unprompted is the observation that
+its pairwise marginals coincide with Bradley-Terry, which is the only reason
+scoring both study arms on a common held-out set is legitimate rather than a
+category error. That connection was found here and then verified numerically.
+
+Drafting help was used for the plain-language explanation pages, the CSS, and the
+prose of the report, on the same terms as projects 1 to 3: the arguments are
+mine, the phrasing was iterated with assistance, and every quantitative claim in
+the report was produced by code in this repository and checked.
+
+## What Project 4's verification actually changed
+
+The project began with the hypothesis that ranking ten films beats pairwise
+choice, which is what the per-task Fisher information says: one ranking carries
+about 60x one comparison. That hypothesis is wrong, and the simulation written to
+power the study is what showed it.
+
+Two corrections stack. Fixing the participant's time rather than the task count
+means eight minutes buys 80 comparisons or 5 rankings, and the accumulated
+information traces then come out at 118 against 129 - a ratio of 1.09, not 60.
+And the trace turns out to be the wrong summary: over a full session the
+log-determinant is 17.6 nats lower for ranking and its smallest eigenvalue is 6.4
+times smaller, because 80 comparisons touch 160 films while 5 rankings touch 50
+and the 45 comparisons inside one ranking all lie in the span of that set's ten
+feature vectors. Ranking accumulates a lot of information about a few directions
+and leaves others to the prior.
+
+The simulation confirms it at 120 simulated participants per condition: with
+ranking assumed flawless the two arms tie (paired d = 0.00), and with any
+position-dependent carelessness pairwise pulls clear (d = -0.34 and -0.51). H1 in
+the report was rewritten to the opposite direction, and the report says plainly
+that this is what pre-registration exists to make visible.
+
+The honest reading is that the naive arithmetic was persuasive and wrong, and it
+would have gone into the report unchallenged if the power simulation had been
+skipped as a formality.
+
 ## What was checked by hand
 
 - The stratified folds were checked to be disjoint, complete, and class-balanced.
@@ -147,3 +197,14 @@ whole frontier — changed between runs; caught by running the same computation 
 three separate processes and comparing. And `text-transform: uppercase` turns a
 Greek lambda into a capital lambda, which reads as an "A", so the slider label
 said "REGULARISATION A" until it was noticed on screen.
+
+Project 4 added three more. `enumitem` is absent from this TeX Live basic install
+and cannot be added without admin rights, so the two list styles it provided were
+rebuilt from the base classes - and the rebuild was briefly recursive, because a
+blanket replacement of `\end{enumerate}` also hit the one inside the new
+environment's own definition. An em dash written as `\\u2014` in a patch script
+landed in `explain.py` as the literal characters, caught by grepping the loaded
+topics for a stray backslash-u rather than by reading the page. And the first
+version of `score_holdout` counted an exactly-even prediction as a miss, which
+scored an untrained model at 0% instead of 50% and would have flattered every fit
+it was compared against.

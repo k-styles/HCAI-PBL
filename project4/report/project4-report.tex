@@ -1,0 +1,735 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{accent}{HTML}{275CB2}
+\definecolor{notebg}{HTML}{F1F5FB}
+\hypersetup{colorlinks=true, linkcolor=accent, urlcolor=accent}
+\captionsetup{font=small, labelfont={bf,color=accent}, width=0.92\textwidth}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\footnotesize\sffamily Project 4 --- Preference Elicitation}
+\fancyhead[R]{\footnotesize\sffamily Kartik Anand, 676049}
+\fancyfoot[C]{\footnotesize\thepage}
+
+\setlength{\parskip}{0.55em}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\emergencystretch}{2.5em}
+
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}{2.2ex \@plus.2ex}%
+  {\normalfont\Large\sffamily\bfseries\color{accent}}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-3.0ex \@plus -1ex \@minus -.2ex}{1.4ex \@plus .2ex}%
+  {\normalfont\large\sffamily\bfseries\color{accent}}}
+\renewcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+  {2.4ex \@plus1ex \@minus.2ex}{-0.8em}%
+  {\normalfont\normalsize\sffamily\bfseries\color{black}}}
+\makeatother
+
+\newsavebox{\calloutbuf}
+\newenvironment{callout}
+  {\par\medskip\begin{lrbox}{\calloutbuf}%
+   \begin{minipage}{\dimexpr\linewidth-24pt\relax}\setlength{\parskip}{0.4em}}
+  {\end{minipage}\end{lrbox}%
+   \noindent\colorbox{notebg}{\hspace{4pt}\usebox{\calloutbuf}\hspace{4pt}}\par\medskip}
+
+\newcommand{\file}[1]{\texttt{\small #1}}
+
+% enumitem is absent from this TeX installation, so the two list shapes it was
+% supplying are built from the base classes: a tightened enumerate, and a
+% description whose label sits on its own line.
+\newenvironment{steps}
+  {\begin{enumerate}\setlength{\itemsep}{0.15em}\setlength{\parskip}{0.15em}}
+  {\end{enumerate}}
+\newcommand{\term}[1]{\par\medskip\noindent\textbf{#1}\par\nopagebreak\vspace{0.15em}}
+\newenvironment{terms}{\par\begingroup\leftskip=1.2em}{\par\endgroup\medskip}
+
+\title{\vspace{-1.4cm}\sffamily\color{accent}\bfseries
+       Preference Elicitation for a Cold-Start Movie Recommender\\[0.25em]
+       \Large\mdseries Project 4 --- Human-Centric Artificial Intelligence}
+\author{Kartik Anand \quad---\quad Matriculation 676049\\[0.3em]
+        \small Hamburg University of Technology \quad SoSe 2026}
+\date{\small \today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{callout}
+A new user has rated nothing, so a recommender must ask. This report chooses a
+20-dimensional movie representation and argues that the choice is governed by the
+elicitation budget rather than by what describes a film best; extends
+Bradley--Terry to full rankings via Plackett--Luce and shows why that particular
+extension is the one that makes the study's comparison meaningful; and designs a
+150-participant, time-matched, pre-registered study comparing pairwise choice
+against ranking ten. A power simulation overturns the design's own starting
+intuition: one ranking of ten carries about sixty times the Fisher information of
+one pairwise comparison, and yet at an equal time budget the pairwise interface
+recovers $w$ at least as well, because a ranking's information is concentrated on
+the ten films in front of the participant rather than spread across the feature
+space. The study is designed, not run. The interface that would run it is
+implemented and reachable from the project landing page.
+\end{callout}
+
+\tableofcontents
+\vspace{1em}
+
+% ============================================================================
+\section{Setting}
+
+The IMDB 5000 dataset describes roughly 5{,}000 films and contains no user
+ratings at all. That absence is not a defect to work around; it is the situation
+of every genuinely new user of every recommender, and the only way out of it is
+to ask.
+
+The preference model is fixed by the brief. A film is a feature vector
+$x \in \mathbb{R}^d$, a user is a latent weight vector $w \in \mathbb{R}^d$, and
+utility is linear:
+\[
+  U(x) \;=\; w^{\!\top} x .
+\]
+Elicitation is the business of recovering $w$ from a small number of
+interactions. Two interfaces are on the table --- repeated choice between two
+films, and ranking sets of ten --- and the project is to work out which of them
+buys more information per unit of the participant's patience.
+
+Everything is numpy and Django. The likelihood, its gradient, the optimiser and
+the Fisher information are written out in \file{project4/preference.py} rather
+than imported, because the derivation is the deliverable.
+
+% ============================================================================
+\section{Task 1 --- The feature representation}
+
+\subsection{The constraint that actually decides it}
+
+The instinct is to ask which columns best describe a film. That is the wrong
+question here, and answering it produces a representation that cannot be
+estimated. Two constraints decide the feature set, and neither is about
+descriptive power.
+
+\paragraph{The elicitation budget.} $w$ will be fitted from something like
+twenty-five responses. Consider adding one weight per director. The dataset has
+2{,}398 distinct directors; two films drawn uniformly at random share one with
+probability well under $10^{-3}$. Essentially every response a participant will
+ever give multiplies every one of those 2{,}398 weights by zero. They are not
+weak features --- they are \emph{unidentifiable} ones at this sample size, and
+including them does not add information, it adds room for the prior to invent
+preferences that were never expressed. The same argument disposes of the three
+actor-name columns.
+
+\paragraph{Visibility to the participant.} A feature the participant cannot see
+on the card cannot have caused their choice. \file{budget}, \file{gross}, the
+four Facebook-likes columns, \file{aspect\_ratio} and
+\file{facenumber\_in\_poster} are not consulted by anyone picking a film to watch
+tonight. If such a feature sits in $x$ but not on the card, the fit will
+nonetheless attribute choices to it whenever it happens to correlate with
+something that did matter. The rule adopted is symmetric and easy to check:
+everything in $x$ appears on the card, and everything on the card is in $x$.
+
+\subsection{Which genres earn a dimension}
+
+Genres are pipe-separated in the source and 26 distinct tags appear. Rather than
+picking a round number, the cut follows from the budget argument. Draw two films
+uniformly at random. For a genre present in a fraction $p$ of the pool, they
+differ on it with probability
+\[
+  \Pr[\text{informative on genre } g] \;=\; 2p(1-p),
+\]
+and a pair that agrees on a genre carries no information about its weight at all.
+Requiring at least one informative pair in ten gives $2p(1-p) \geq 0.10$, whose
+lower root is $p \geq 0.0528$. Fourteen genres clear it.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Kept} & Drama, Comedy, Thriller, Action, Adventure, Romance, Crime,
+                Sci-Fi, Fantasy, Mystery, Horror, Family, Biography, Animation \\
+\textbf{Dropped} & War, History, Sport, Music, Musical, Western, Documentary,
+                Film-Noir, News \\
+\bottomrule
+\end{tabularx}
+\caption{The genre cut at $p \geq 0.0528$. Western sits at $p = 0.019$, so about
+one pair in twenty-six says anything about it --- one observation across a whole
+session, which is not enough to estimate a weight and is enough for the prior to
+fill one in.}
+\end{table}
+
+\subsection{The remaining six, and their scaling}
+
+Four continuous axes and two indicators complete the vector, giving $d = 20$:
+how recent the film is (\file{title\_year}), how long it runs
+(\file{duration}), how well reviewed it is (\file{imdb\_score}), how widely seen
+(\,$\log_{10}$ of \file{num\_voted\_users}\,), whether it is certified for adults,
+and whether it is black and white.
+
+Acclaim and reach are deliberately separate dimensions rather than one
+``popularity'' axis. ``Well reviewed but obscure'' and ``widely seen but
+mediocre'' are both common and describe genuinely different tastes; collapsing
+them would make those two people indistinguishable.
+
+The four continuous features are standardised, so $w_j$ reads uniformly as
+utility per standard deviation and a single isotropic prior is a coherent thing
+to put on them. The genre indicators are deliberately \emph{not} standardised:
+scaling a genre with $p = 0.06$ to unit variance would let the same weight
+produce a four-times-larger utility swing than for a genre with $p = 0.5$, so an
+isotropic prior would permit rarer genres --- the ones with less evidence behind
+them --- larger effects. Leaving them as raw $0/1$ makes $w_g$ the utility of the
+tag itself and shrinks every genre equally.
+
+\subsection{The pool}
+
+Films with fewer than 25{,}000 IMDB votes are removed and duplicate titles
+collapsed, leaving \textbf{2{,}734} films spanning 1927--2016. This is a validity
+decision, not data cleaning: a participant comparing two films they have never
+heard of is not expressing a preference, they are reading metadata off the card
+and guessing. That guessing enters the model as response noise attributed to
+$w$, and no amount of modelling recovers from it.
+
+Extraction is \file{project4/data.py}, function \file{pool()}. The threshold is
+computed from \file{PAIR\_INFORMATIVENESS} rather than hard-coded, so the
+argument above and the code cannot drift apart.
+
+% ============================================================================
+\section{Task 2 --- From Bradley--Terry to rankings}
+
+\subsection{The extension}
+
+Bradley--Terry over linear utilities is
+\[
+  \Pr(i \succ j) \;=\; \frac{e^{U_i}}{e^{U_i} + e^{U_j}}
+                 \;=\; \sigma\!\left(w^{\!\top}(x_i - x_j)\right).
+\]
+
+Read a ranking as a sequence of choices rather than as an object in its own
+right. The participant names a favourite out of ten; then a favourite of the nine
+that remain; and so on. Each of those is Bradley--Terry widened from two
+alternatives to however many are left, which is a softmax over the surviving
+utilities. Multiplying the stages gives, for the observed order
+$i_1 \succ i_2 \succ \cdots \succ i_n$,
+\begin{equation}
+  \Pr(i_1 \succ \cdots \succ i_n)
+  \;=\; \prod_{k=1}^{n-1} \frac{e^{U_{i_k}}}{\sum_{l \geq k} e^{U_{i_l}}} ,
+  \label{eq:pl}
+\end{equation}
+the Plackett--Luce model. The final factor is $1$ and is dropped.
+
+\subsection{Why this extension and not another}
+
+\paragraph{It is not a replacement.} At $n = 2$ the product in \eqref{eq:pl} has
+a single factor and reduces to Bradley--Terry exactly. The two interfaces in this
+study are therefore not fitting two different models, and \file{preference.py}
+never branches on which arm produced a response --- a pairwise choice is stored
+as a ranking of length two and the same likelihood consumes both.
+
+\paragraph{Its pairwise marginals are Bradley--Terry.} This is the property the
+entire study rests on. Under \eqref{eq:pl}, the probability that $i$ appears
+anywhere before $j$ in the sampled ranking is
+\[
+  \Pr(i \text{ before } j) \;=\; \frac{e^{U_i}}{e^{U_i}+e^{U_j}},
+\]
+independently of which other films share the set. So an answer collected by
+ranking ten films and an answer collected by comparing two carry information
+about the \emph{same} parameter. Without this, scoring both arms against a common
+set of held-out pairwise comparisons (Section~\ref{sec:outcome}) would not be a
+fair test --- it would be a category error, measuring one arm on its own terms
+and the other on somebody else's. The claim is verified numerically rather than
+asserted: \file{check\_marginals} draws $6\times10^4$ Plackett--Luce rankings by
+Gumbel-max sampling and compares the empirical order frequencies against the
+Bradley--Terry probabilities, agreeing to a maximum absolute error of
+$3.3\times10^{-3}$, which is Monte-Carlo noise at that sample size.
+
+\paragraph{The tempting alternative is wrong.} A ranking of ten implies
+$\binom{10}{2} = 45$ pairwise preferences, and it is natural to treat them as 45
+Bradley--Terry observations and multiply. This fails twice. The 45 comparisons
+are not independent: $i_1 \succ i_3$ is partly entailed by $i_1 \succ i_2$ and
+$i_2 \succ i_3$, so the product counts the same evidence repeatedly and reports
+far more confidence than the data support --- exactly the failure that would make
+Design 2 look artificially good. And the product is not a probability
+distribution over the $n!$ orderings; it does not sum to one, so it is not a
+likelihood and the estimate that maximises it is not a maximum-likelihood
+estimate of anything. Equation~\eqref{eq:pl} is a product of properly normalised
+choices and sums to one by construction.
+
+\paragraph{What it inherits, including the awkward part.} Plackett--Luce carries
+over Luce's choice axiom: the odds between two films do not depend on what else
+is present. People violate this. Put two near-identical sequels into a set of ten
+and they tend to split the appeal and both sink. Design 2 exposes ten films at
+once and is therefore more exposed to the violation than Design 1, which never
+shows more than two. This is recorded as a limitation and as a threat to validity
+in Section~\ref{sec:threats}, not quietly assumed away.
+
+\subsection{Estimating $w$}
+
+The gradient of \eqref{eq:pl} is clean. At stage $k$ it is the chosen film's
+features minus the softmax-weighted mean over the films still available:
+\[
+  \nabla_w \log \Pr \;=\; \sum_{k=1}^{n-1}
+    \Bigl( x_{i_k} - \sum_{l \geq k} p^{(k)}_l\, x_{i_l} \Bigr),
+  \qquad
+  p^{(k)}_l = \frac{e^{U_{i_l}}}{\sum_{m \geq k} e^{U_{i_m}}} .
+\]
+
+The estimate is MAP rather than ML, with an isotropic Gaussian prior
+$w \sim \mathcal{N}(0, \sigma^2 I)$ at $\sigma = 1$. The prior is not a
+refinement; without it the estimate frequently does not exist. With $d = 20$ and
+roughly 25 responses there are usually directions in $w$ that no response
+constrains, and the likelihood increases without bound along them. $\sigma = 1$
+states that a one-standard-deviation move in a feature is worth about one unit of
+utility --- roughly a $73/27$ preference --- which is a weak claim and the honest
+one: absent evidence, assume no strong opinion.
+
+Optimisation is gradient ascent with backtracking line search. The objective is a
+concave log-likelihood plus a strictly concave penalty, hence strictly concave, so
+a vanishing gradient certifies the global optimum; \file{fit} reports the final
+gradient norm and the interface displays it. Typical runs terminate around
+$4\times10^{-7}$.
+
+% ============================================================================
+\section{Task 3 --- The user study}
+
+\subsection{What is being compared, and the arithmetic that motivates it}
+
+\paragraph{Information per task.} For a softmax choice over a set $S$ with
+probabilities $p_s$, the Fisher information about $w$ is
+$\sum_{s \in S} p_s x_s x_s^{\!\top} - \bar{x}\bar{x}^{\!\top}$ with
+$\bar{x} = \sum_s p_s x_s$, and a Plackett--Luce ranking contributes one such
+term per stage. Evaluated on this feature set at a representative $w$, the trace
+is about $0.57$ for one pairwise comparison and about $34.1$ for one ranking of
+ten --- a factor of roughly \textbf{60}. Taken alone this looks decisive for
+Design 2.
+
+\paragraph{The confound that would ruin the comparison.} Comparing ``forty pairs
+against eight rankings'' compares two arbitrary numbers. What a recommender
+actually spends is the user's patience, and eight minutes is eight minutes
+however it is divided. \textbf{Both arms therefore receive the same wall-clock
+elicitation budget of eight minutes} and complete as many tasks as fit. This is
+the single most important control in the design, and applying it immediately
+deflates the factor of 60: at the pilot's assumed 6\,s per comparison and 90\,s
+per ranking, the budget buys 80 comparisons or 5 rankings, so the accumulated
+traces come out at 118 and 129 --- a ratio of \textbf{1.09}, not 60.
+
+\paragraph{And the trace is the wrong summary anyway.}
+\label{sec:conditioning}
+Trace measures total information, not whether it is pointed anywhere useful.
+Accumulating the Fisher matrix over a whole session and looking at its spectrum
+tells a different story.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+& \textbf{Trace} & \textbf{Log-determinant} & \textbf{Smallest eigenvalue} &
+\textbf{Distinct films} \\
+\midrule
+Design 1 --- 80 pairs    & 118.3 & $+17.47$ & 0.224 & 160 \\
+Design 2 --- 5 rank-tens & 129.2 & $-0.09$  & 0.035 & \phantom{0}50 \\
+\bottomrule
+\end{tabular}
+\caption{Fisher information accumulated over one eight-minute session, averaged
+over 40 draws of $w$. The traces nearly tie; the determinants do not.}
+\end{table}
+
+The log-determinant --- the D-optimality criterion, and the quantity that
+actually governs the volume of the confidence region for $\hat{w}$ --- is
+\textbf{17.6 nats lower} for Design 2, and its smallest eigenvalue is
+\textbf{6.4 times smaller}. The reason is structural rather than statistical.
+Eighty pairwise comparisons touch 160 films and contribute 160 independent random
+directions in feature space. Five rankings touch 50 films, and the 45 stage-wise
+comparisons inside one ranking all lie in the span of that set's ten feature
+vectors. A ranking piles up a great deal of information about a few directions
+and leaves others essentially unconstrained, where the prior then supplies the
+answer.
+
+This is the substantive contribution of the analysis, and it is easy to miss: the
+per-task factor of 60 is real, the time correction cancels almost all of it, and
+what remains points the other way.
+
+\paragraph{One more reason to doubt Design 2.} The arithmetic above assumes the
+participant answers all nine stages of a ranking exactly as the model says.
+Ordering the middle of a list of ten is genuinely hard, and the natural failure
+mode is position-dependent --- careful at the top, careless by position eight. If
+the later stages are noise, even Design 2's remaining advantage evaporates.
+
+\subsection{Hypotheses}
+
+Stated before data collection, with one confirmatory primary and three
+subordinate secondaries.
+
+\begin{terms}
+\term{H1 (primary, confirmatory).} Under an equal eight-minute budget, $w$
+  estimated from Design 1 (pairwise) predicts held-out pairwise choices at least
+  as well as $w$ estimated from Design 2 (rank ten), measured by mean held-out
+  log loss. Directional, one-sided at $\alpha = .05$, in favour of Design 1.
+
+  \emph{The direction is worth pausing on.} It is the opposite of what the
+  per-task information figure suggests, and it was set by the analysis in
+  Section~\ref{sec:conditioning} and the simulation in Section~\ref{sec:sim} ---
+  both run before this hypothesis was written down, and both reported here
+  whichever way they came out. Pre-registering the direction that the naive
+  arithmetic favours, and then finding the opposite, is precisely the situation
+  pre-registration exists to make visible.
+\term{H2 (secondary).} Response quality in Design 2 degrades with position: the
+  implied choice at stage $k$ is noisier as $k$ grows.
+\term{H3 (secondary).} Design 2 has a higher abandonment rate and lower
+  self-reported ease.
+\term{H4 (secondary).} Design 1's advantage narrows as the budget grows. Once
+  enough rankings have accumulated to cover the feature space, the conditioning
+  problem in Section~\ref{sec:conditioning} eases, and Design 2's larger per-task
+  information should begin to tell.
+\end{terms}
+
+\subsection{The primary outcome, and why it cannot be ``accuracy of $w$''}
+\label{sec:outcome}
+
+The obvious outcome measure is how close the estimated $\hat{w}$ is to the
+participant's true $w$. It is unavailable: $w$ is latent and never observed for a
+real person, so no distance to it can be computed. This is not a technicality to
+be finessed --- a study whose primary outcome cannot be computed is not a study.
+
+What is measurable is prediction. Every participant, in both arms, finishes with
+an identical block of \textbf{ten held-out pairwise comparisons}. $\hat{w}$ is
+fitted on the elicitation responses only, and scored on the held-out block by
+mean log loss
+\[
+  \mathcal{L} \;=\; -\frac{1}{10}\sum_{m=1}^{10} \log
+    \sigma\!\left(w^{\!\top}(x_{c_m} - x_{r_m})\right),
+\]
+where $c_m$ was chosen and $r_m$ rejected. An uninformed model answers $0.5$
+every time and scores $\log 2 = 0.693$; anything below has learned something.
+
+Log loss rather than accuracy, for a concrete reason: on ten held-out items,
+accuracy takes eleven possible values and discards all confidence information, so
+it needs far more participants to separate the arms. The held-out block is
+identical in task, count and wording across arms --- if the test itself differed,
+any difference in the result could be the test.
+
+\subsection{Design and assignment}
+
+Between-subjects, with a within-subject held-out block. Each participant does one
+elicitation design, assigned at random.
+
+Within-subjects would be more sensitive, and is rejected for a reason that no
+counterbalancing removes: having ranked ten films, a participant understands
+their own taste better and would approach the second design differently for that
+reason alone. Order effects can be balanced; genuine learning about oneself
+cannot be undone.
+
+Randomisation is blocked on the pre-task question ``how often do you watch a
+film'' (four levels), in permuted blocks of four within each stratum. Frequent
+viewers have firmer preferences and lower response noise, and leaving that to
+simple randomisation would let it land unevenly across arms.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Design 1} & \textbf{Design 2} \\
+\midrule
+Elicitation task & choose one of two & rank ten, most to least preferred \\
+Budget & 8 minutes & 8 minutes \\
+Expected tasks completed & $\approx 80$ at 6\,s each & $\approx 5$ at 90\,s each \\
+Model & Bradley--Terry & Plackett--Luce, Eq.~\eqref{eq:pl} \\
+Held-out block & 10 pairs, identical & 10 pairs, identical \\
+\bottomrule
+\end{tabularx}
+\caption{The two arms. Per-task durations are the pilot's job to confirm; the
+budget, not the task count, is what is held fixed.}
+\end{table}
+
+Films are drawn uniformly at random from the pool, as the brief permits. Adaptive
+selection would raise both arms' efficiency but is deliberately excluded: it
+would interact with the design being tested, since an adaptive scheme has more
+room to exploit a ranking of ten than a single pair, and the comparison would no
+longer isolate the interface.
+
+\subsection{Procedure}
+
+\begin{steps}
+\item Consent form: what is recorded, what is not, right to withdraw.
+\item Viewing-frequency question; blocked random assignment.
+\item Instructions with one worked practice task, not counted.
+\item Eight minutes of elicitation in the assigned design. A visible timer. The
+  participant may stop early; responses so far are retained.
+\item Ten held-out pairwise comparisons, identical across arms, plus two repeats
+  (Section~\ref{sec:exclusions}) --- twelve screens in total.
+\item Two seven-point items: perceived effort, and confidence that the system
+  now understands their taste.
+\item Debrief: the fitted taste profile and five recommendations.
+\end{steps}
+
+Total is about twelve minutes.
+
+\subsection{Recruitment and sample size}
+
+Recruitment via Prolific, restricted to fluent English speakers aged 18+, no
+prior participation in a pilot of this study. Prolific rather than a university
+pool: students are unrepresentative in exactly the dimension that matters here
+(age strongly predicts film familiarity), and the pool would also make the
+department's own students the subjects of their own coursework.
+
+Power analysis for the primary test. Treating H1 as a two-sample comparison of
+mean held-out log loss with a medium standardised effect $d = 0.5$, one-sided
+$\alpha = .05$ and power $0.80$ requires
+\[
+  n \;=\; \frac{(z_{1-\alpha} + z_{1-\beta})^2 \cdot 2}{d^2}
+    \;=\; \frac{(1.645 + 0.842)^2 \cdot 2}{0.25} \;\approx\; 49.5
+\]
+per arm, so \textbf{50 per arm}. Inflating by 20\,\% for the exclusions in
+Section~\ref{sec:exclusions} and for abandonment --- higher in Design 2 under
+H3 --- gives \textbf{150 recruited, 75 per arm}. $d = 0.5$ is chosen as the
+smallest difference that would change what anyone builds; a smaller one would be
+real but not actionable.
+
+Payment is \pounds 2.00 for a twelve-minute task, above the Prolific minimum,
+paid on completion and also on withdrawal.
+
+\subsection{Exclusions and attention checks}
+\label{sec:exclusions}
+
+All criteria are fixed before collection begins.
+
+\begin{steps}
+\item \textbf{Test--retest.} Two of the ten held-out pairs are shown a second
+  time with the films swapped left to right. Disagreeing on \emph{both} excludes
+  the participant. The swap matters: a participant clicking the same side out of
+  habit is caught, whereas an identical re-presentation would not catch them.
+\item \textbf{Floor on effort.} Median task time below 1.5\,s in Design 1, or any
+  ranking submitted unmodified from its presented order in Design 2.
+\item \textbf{Non-completion.} The held-out block not finished. Counted and
+  reported by arm, since H3 predicts the rate differs.
+\end{steps}
+
+Excluded participants are reported by arm and by reason. The rules are written
+down in advance precisely so that they cannot be applied to whoever spoiled the
+result.
+
+\subsection{Analysis plan}
+
+Pre-registered on OSF before the first participant.
+
+\emph{Primary.} Welch's $t$-test on mean held-out log loss, Design 2 versus
+Design 1, one-sided. Reported with a bootstrap 95\,\% CI on the difference; the
+CI, not the $p$-value, is what a reader should act on. Mann--Whitney as a
+sensitivity check if a Shapiro--Wilk test rejects normality.
+
+\emph{H2.} A mixed-effects logistic model over the implied stage-wise choices in
+Design 2, regressing correctness of the model's prediction on stage index $k$
+with a random intercept per participant. A negative coefficient on $k$ is
+position-dependent degradation. Equivalently and more directly: fit a separate
+temperature per stage and test whether it increases in $k$.
+
+\emph{H3.} Two-proportion test on abandonment; Mann--Whitney on the effort item.
+
+\emph{H4.} Refit each participant's $\hat{w}$ on truncated prefixes of their
+responses (2, 4, 6, 8 minutes) and compare held-out log-loss curves by arm. This
+is why per-response timestamps are recorded rather than a single total.
+
+Holm--Bonferroni across the three secondaries. The primary is not corrected: it
+is a single pre-specified confirmatory test.
+
+\emph{Reporting.} All four hypotheses are reported whichever way they come out,
+along with exclusion counts by arm, and the anonymised response data.
+
+\subsection{Pilot}
+
+Ten participants, not pooled into the main analysis, to fix the two numbers the
+design depends on: the median duration of a pairwise comparison and of a
+ranking of ten. Those set the expected task counts in Table~2 and feed the
+budget. The pilot also tests whether the instructions are understood without a
+question, and whether the drag interaction works on a phone --- if it does not,
+the study is desktop-only and that becomes a stated population restriction.
+
+\subsection{Ethics and data protection}
+
+Approval from the TUHH ethics committee before recruitment. Informed consent on
+the first screen, with the withdrawal right stated in the same words used on the
+study screen. No special-category data.
+
+Recorded: arm, film indices, response order, per-task duration, viewing
+frequency, two Likert items. Not recorded: name, email, IP address, Prolific ID
+beyond the payment reconciliation held separately and destroyed once payment
+clears. The dataset is pseudonymous under GDPR Art.~4(5); the lawful basis is
+consent under Art.~6(1)(a), withdrawable, and withdrawal deletes the row.
+Retention five years, then deletion; anonymised data published with the
+pre-registration.
+
+\subsection{Threats to validity}
+\label{sec:threats}
+
+\begin{terms}
+\term{Unfamiliar films.} A participant who recognises neither film is guessing
+  from metadata, which enters the model as noise attributed to $w$. Mitigated by
+  the 25{,}000-vote floor. Not eliminated --- an ``I don't know either of these''
+  option would eliminate it, at the cost of making the two arms structurally
+  different, since there is no natural equivalent when ranking ten. The floor is
+  the lesser compromise.
+\term{Violations of the choice axiom.} Near-duplicate films in a set of ten
+  split the vote in a way Plackett--Luce cannot represent, and this hits Design 2
+  specifically --- so it is confounded with the manipulation. A post-hoc check
+  correlates each set's internal feature similarity with that ranking's residual;
+  if the effect is large, the finding is about ranking-with-random-sets rather
+  than about ranking.
+\term{Position-dependent noise.} Assuming it away would let Design 2 borrow
+  confidence it has not earned. H2 measures it directly.
+\term{Model misspecification, shared.} Utility is linear and additive, so
+  ``I like horror but not long horror'' is inexpressible. This applies equally to
+  both arms, so it threatens the generalisation to better preference models, not
+  the internal comparison.
+\term{Population.} Prolific participants are not a random sample of humanity.
+  The claim is about these designs on this population, and is stated that way.
+\term{Simulated, not observed.} The information figures and the simulation in
+  Section~\ref{sec:sim} assume people behave as the model says. They set the
+  direction of H1; they are not evidence for it. That is the whole reason for
+  running the study.
+\term{Timing assumptions.} The 6\,s and 90\,s per-task figures do the heavy
+  lifting in every time-matched comparison here, and they are assumptions until
+  the pilot measures them. If a ranking of ten takes 45\,s rather than 90\,s,
+  Design 2 gets twice the tasks and the conditioning gap narrows sharply. The
+  pilot exists mainly to pin these two numbers down, and the analysis is
+  re-run against the measured values before recruitment.
+\end{terms}
+
+\subsection{What the simulation predicts}
+\label{sec:sim}
+
+Before recruiting anyone it is worth knowing whether the design can detect
+anything, and in which direction. Simulated participants with a known $w$ answer
+according to Plackett--Luce with a stage-dependent temperature $1 + \beta k$,
+under the eight-minute budget at the assumed 6\,s and 90\,s per task. Both arms
+are fitted by the same MAP procedure and scored on ten held-out pairs.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lcccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{Held-out log loss}} & &
+  \multicolumn{2}{c}{\textbf{Correlation with true $w$}} & \\
+\cmidrule(lr){2-3}\cmidrule(lr){5-6}
+\textbf{Position noise} & D1 & D2 & \textbf{Paired $d$} & D1 & D2 &
+\textbf{Favours D2} \\
+\midrule
+$\beta = 0$ (none)      & 0.488 & 0.488 & $-0.00$ & 0.753 & 0.766 & 54\,\% \\
+$\beta = 0.25$ (mild)   & 0.488 & 0.557 & $-0.34$ & 0.753 & 0.626 & 41\,\% \\
+$\beta = 0.5$ (marked)  & 0.488 & 0.599 & $-0.51$ & 0.753 & 0.547 & 33\,\% \\
+\bottomrule
+\end{tabular}
+\caption{120 simulated participants per row; 80 comparisons against 5 rankings
+in the same eight minutes. Negative $d$ favours Design 1. $\beta = 0$ is the
+model's own optimistic assumption --- every stage of a ranking answered as
+carefully as the first. $\beta = 0.5$ makes the last stage roughly five times
+noisier than the first.}
+\end{table}
+
+\paragraph{Reading it.} Even when the participant is assumed to rank ten films as
+carefully as they would choose between two --- the most generous assumption
+available, and one nobody believes --- Design 2 does not win. It ties, with a
+paired $d$ of $-0.00$ and a coin-flip split across simulated participants. Its
+higher correlation with the true $w$ at $\beta = 0$ (0.766 against 0.753) does
+not convert into better held-out prediction, which is what the conditioning
+result predicts: the extra accuracy sits in directions the held-out pairs rarely
+probe, while the poorly-constrained directions cost it elsewhere.
+
+Add any position-dependent carelessness and Design 1 pulls clear. At
+$\beta = 0.25$ the paired $d$ is $-0.34$; at $\beta = 0.5$ it is $-0.51$, around
+the effect the study is powered to detect.
+
+\paragraph{What this does and does not license.} It sets the direction of H1, and
+it says the study is worth running --- if Design 2 had won under every assumption,
+the interesting question would have been settled at a desk. It is not evidence
+about people. Every row assumes participants are Plackett--Luce agents with a
+particular noise schedule, and $\beta$ for real participants is exactly the
+unknown. What the simulation establishes is that the answer turns on $\beta$, and
+$\beta$ can only be measured by asking people --- which is H2, and which is why
+the interface records per-stage responses rather than just the final order.
+
+% ============================================================================
+\section{Task 4 --- The interface}
+
+Implemented in \file{project4/}, reachable from the landing page at
+\file{/project4/}, which offers this PDF on one side and the study on the other
+as the brief requires.
+
+\paragraph{Flow.} Consent and the frequency question
+(\file{templates/project4/consent.html}) $\rightarrow$ blocked random assignment
+$\rightarrow$ elicitation in the assigned design, \file{pair.html} or
+\file{rank.html} $\rightarrow$ the twelve-screen held-out block, always
+\file{pair.html} $\rightarrow$ debrief. The state machine is \file{study.py};
+\file{next\_task} is the single place that decides what the participant sees
+next, so the protocol can be read in one function.
+
+\paragraph{Storage.} A \file{Participant} row and one \file{Response} row per
+task, in the database rather than the session, because session-only storage
+loses everything the moment a tab closes. A pairwise choice is stored as a
+ranking of length two, so the schema has one representation and the fitting code
+never branches on arm --- the practical payoff of Section~3's first
+justification.
+
+\paragraph{Reproducibility.} Every draw derives from one stored integer seed per
+participant. The held-out block is therefore fixed for that participant:
+reloading cannot reroll it into an easier one, and a whole session can be
+reconstructed from the seed.
+
+\paragraph{Accessibility.} Ranking supports drag-and-drop \emph{and} per-row
+up/down buttons. This is not politeness. Drag-and-drop is unusable with a
+keyboard or a screen reader, so a drag-only interface would exclude a subset of
+participants --- and would do so invisibly, since the excluded participants
+appear in the data as abandonments and inflate exactly the H3 statistic being
+measured. The ranking form also serves its hidden inputs in the presented order,
+so a participant with scripting disabled submits something coherent rather than
+nothing.
+
+\paragraph{Timing.} Per-task durations are measured server-side from when the
+page was issued, capped at 600\,s so a participant who walks away does not
+consume the whole budget in one task. H4 needs per-response timestamps, so they
+are stored individually rather than accumulated.
+
+\paragraph{Preview mode.} The consent screen carries a clearly separated block,
+marked as not part of the participant's view, that forces an arm and shortens
+the budget to 75 seconds so the interface can be walked end to end. Preview runs
+are flagged on the participant row and can be filtered out of any analysis.
+
+\paragraph{Explanations.} Twenty-four plain-language pages
+(\file{project4/explain.py}), linked inline at the point each term first appears
+rather than collected in a glossary nobody opens. The participant-facing pages
+are covered too, deliberately: consent that requires a statistics degree to
+understand is not informed consent.
+
+% ============================================================================
+\section{Limitations}
+
+The linear utility model cannot express interactions between features, and the
+representation cannot express anything about who made the film. Both are chosen
+constraints, and both would be worth relaxing given a larger elicitation budget
+than a new user will tolerate.
+
+Uniform random sampling of films is what the brief permits and is not what a
+deployed system should do; an adaptive scheme choosing maximally informative sets
+would improve both arms. It is excluded here because it would interact with the
+manipulation.
+
+Most importantly, the study has not been run. Every quantitative claim about the
+two designs in this report is a simulation under the model's own assumptions,
+and the point of the design in Section~4 is that those assumptions are the thing
+in doubt.
+
+\end{document}
