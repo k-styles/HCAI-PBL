@@ -24,7 +24,7 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
 
 {% if kind == 'tree' %}
     <div class="p2-card">
-        <h2>The tree, as sentences{% info "tree" %}</h2>
+        <h2>The tree, as sentences{% info "tree" %}{% info "overfitting" %}</h2>
         <p class="p2-sub">One line per path from the root to a decision. This is the form
             that answers &ldquo;why did it say that&rdquo; without tracing a diagram.</p>
         <ol class="p2-rules">
@@ -43,14 +43,14 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
     </div>
 
     <div class="p2-card">
-        <h2>The same tree, drawn</h2>
+        <h2>The same tree, drawn{% info "leaves" %}</h2>
         <p class="p2-sub">The conventional view. It stops being readable somewhere around a
             dozen leaves, which is the argument the slider is making.</p>
         <figure class="p2-figure"><img src="{{ tree_url }}" alt="Decision tree"></figure>
     </div>
 {% else %}
     <div class="p2-card">
-        <h2>What the model consults{% info "sparsity" %}</h2>
+        <h2>What the model consults{% info "sparsity" %}{% info "logistic" %}</h2>
         <p class="p2-sub">{% term "complexity" "Ω" %} counts the features with a non-zero {% term "coefficient" "coefficient" %}. A feature with
             a coefficient of zero costs the reader nothing, which is the point.</p>
         <div class="p2-scroll">
@@ -79,7 +79,7 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
 
 <div class="p2-card">
     <h2>What the slider can actually reach{% info "reachable" %}</h2>
-    <p class="p2-sub">Each model is a straight line in λ with slope −Ω, so choosing the best
+    <p class="p2-sub">Each model is a straight line in {% term "lambda" "λ" %} with slope −{% term "complexity" "Ω" %}, so choosing the best
         one is taking the highest line. Only models on the upper edge are ever highest &mdash;
         the rest are beaten at every λ by something simpler, something better, or a blend.</p>
 
@@ -112,7 +112,7 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
 </div>
 
 <div class="p2-card">
-    <h2>Everything that was trained</h2>
+    <h2>Everything that was trained{% info "accuracy" %}</h2>
     <div class="p2-scroll">
         <table class="p2-table">
             <thead><tr><th>Setting</th><th class="num">Ω</th><th class="num">test</th>

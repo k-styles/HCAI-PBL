@@ -20,6 +20,8 @@
         <a href="{% url 'project3:defer' %}" class="{% if page == 'defer' %}current{% endif %}">2 &middot; When to hand over</a>
         <a href="{% url 'project3:active' %}" class="{% if page == 'active' %}current{% endif %}">3 &middot; Which questions to ask</a>
         <a href="{% url 'project3:explain_index' %}" class="{% if page == 'explain' %}current{% endif %}">What do these words mean?</a>
+        <a class="quiet" href="{% url 'home:own_work' %}">Our own work</a>
+        {% if debug %}<a class="quiet" href="{% url 'home:notes' %}">Dev notes</a>{% endif %}
     </nav>
 
     <div class="p3-body">

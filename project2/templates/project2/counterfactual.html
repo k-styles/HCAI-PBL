@@ -43,7 +43,7 @@ smallest changes that would have got you there.{% endblock %}
 </div>
 
 <div class="p2-card">
-    <h2>Penguin #{{ example_index }} as it is</h2>
+    <h2>Penguin #{{ example_index }} as it is{% info "penguins" %}</h2>
     <div class="p2-scroll">
         <table class="p2-table">
             <thead><tr>
@@ -107,8 +107,8 @@ smallest changes that would have got you there.{% endblock %}
 {% endif %}
 
 <div class="p2-card">
-    <h2>How hard it had to look</h2>
-    <p class="p2-sub">Each round samples more widely than the last. It stops as soon as it has
+    <h2>How hard it had to look{% info "noising" %}</h2>
+    <p class="p2-sub">Each round {% term "noising" "samples more widely" %} than the last. It stops as soon as it has
         enough, so a target that is easy to reach costs one round.</p>
     <div class="p2-scroll">
         <table class="p2-table">

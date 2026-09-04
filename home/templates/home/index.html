@@ -53,8 +53,46 @@
                 {% endfor %}
             </div>
 
+            <h2 class="hub-heading">The written parts</h2>
+            <div class="hub-docs">
+                <a class="hub-doc {% if not report %}missing{% endif %}"
+                   {% if report %}href="{% url 'home:report' %}" target="_blank" rel="noopener"{% endif %}>
+                    <span class="hub-doc-kind">Report &middot; PDF</span>
+                    <span class="hub-doc-name">Implementation report</span>
+                    <span class="hub-doc-blurb">All four projects: what was built, which
+                        decisions the briefs left open, and how each was settled.</span>
+                    <span class="hub-doc-open">{% if report %}Open &rarr;{% else %}Not built yet{% endif %}</span>
+                </a>
+
+                <a class="hub-doc {% if not ai_usage_pdf %}missing{% endif %}"
+                   {% if ai_usage_pdf %}href="{% url 'home:ai_usage' %}" target="_blank" rel="noopener"{% endif %}>
+                    <span class="hub-doc-kind">Declaration &middot; PDF</span>
+                    <span class="hub-doc-name">Use of AI tools</span>
+                    <span class="hub-doc-blurb">Where an LLM was used, what was not
+                        delegated, and what verification actually changed.</span>
+                    <span class="hub-doc-open">{% if ai_usage_pdf %}Open &rarr;{% else %}Run manage.py build_ai_usage{% endif %}</span>
+                </a>
+
+                <a class="hub-doc" href="{% url 'project3:report' %}" target="_blank" rel="noopener">
+                    <span class="hub-doc-kind">Report &middot; PDF</span>
+                    <span class="hub-doc-name">Project 3 report</span>
+                    <span class="hub-doc-blurb">Required by its brief: the deferral
+                        policy, the simulated expert, and the active learning results.</span>
+                    <span class="hub-doc-open">Open &rarr;</span>
+                </a>
+
+                <a class="hub-doc" href="{% url 'project4:report' %}" target="_blank" rel="noopener">
+                    <span class="hub-doc-kind">Report &middot; PDF</span>
+                    <span class="hub-doc-name">Project 4 report</span>
+                    <span class="hub-doc-blurb">Required by its brief: the features, the
+                        Plackett&ndash;Luce extension, and the full user-study design.</span>
+                    <span class="hub-doc-open">Open &rarr;</span>
+                </a>
+            </div>
+
             <p class="hub-foot">
                 <a href="{% url 'home:own_work' %}">What the briefs require us to write ourselves &rarr;</a>
+                {% if debug %}<br><a href="{% url 'home:notes' %}">Development notes &rarr;</a>{% endif %}
             </p>
         </div>
     </div>

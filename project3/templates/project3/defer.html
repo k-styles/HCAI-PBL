@@ -6,7 +6,7 @@
 
 {% block region %}
 <div class="p3-card">
-    <h2>The dial {% info "threshold" %}</h2>
+    <h2>The dial {% info "threshold" %}{% info "deferral" %}</h2>
     <p class="p3-sub">The system estimates, for each article, how much more likely the expert
         is to be right than the machine &mdash; the {% term "advantage" "advantage score" %}.
         It hands over when that exceeds the threshold below.</p>
@@ -61,7 +61,7 @@
 </div>
 
 <div class="p3-card">
-    <h2>What each level of interruption buys</h2>
+    <h2>What each level of interruption buys{% info "out-of-fold" %}</h2>
     <figure class="p3-figure"><img src="{{ tradeoff_url }}" alt="Accuracy against deferral rate"></figure>
     <div class="p3-scroll">
         <table class="p3-table">

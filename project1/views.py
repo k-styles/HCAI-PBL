@@ -8,7 +8,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
-from . import data, devnotes, learning, plots
+from . import data, learning, plots
 from .explain import TOPICS, groups
 from .forms import TrainingForm, UploadForm
 from .models import TrainingRun
@@ -267,38 +267,6 @@ def explain(request, slug):
         "topic": topic,
         "related": [TOPICS[s] for s in topic.related if s in TOPICS],
     })
-
-
-def _development_only():
-    if not settings.DEBUG:
-        raise Http404("Available during development only.")
-
-
-def notes(request):
-    """The project's own write-up, readable from inside the thing it describes."""
-    _development_only()
-    return render(request, "project1/notes.html", {
-        "page": "notes",
-        "ai_usage": devnotes.ai_usage_html(),
-        "report": devnotes.report_path(),
-    })
-
-
-@xframe_options_sameorigin
-def report(request):
-    """Served with a same-origin frame exemption so the notes page can embed it.
-
-    Django denies framing for every response by default, which is right for
-    everything else here and blocks the preview iframe.
-    """
-    _development_only()
-    path = devnotes.report_path()
-    if path is None:
-        raise Http404("The report has not been built yet.")
-    return FileResponse(open(path, "rb"), content_type="application/pdf",
-                        filename=path.name)
-
-
 def reset(request):
     note = request.session.pop(SESSION_KEY, None)
     if note:

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+        <link rel="stylesheet" href="{% static 'home/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <div class="title-container">
+        <div class="title">Development notes</div>
+    </div>
+
+    <div class="main-text">
+        <p class="centered-text">How this submission was built, and what an LLM was used
+        for. This page is not part of the apps &mdash; it returns 404 unless the server is
+        running with <code class="dn-code">DEBUG</code> on, so nothing has to be
+        remembered and stripped out before handing in.</p>
+
+        <p class="hub-foot">
+            <a href="{% url 'home:index' %}">&larr; Hub</a> &nbsp;&middot;&nbsp;
+            <a href="{% url 'home:own_work' %}">Our own work</a>
+        </p>
+
+        <div class="dn-card">
+            <h2>Implementation report</h2>
+            <p class="dn-sub">All four projects: what was built, which decisions the
+                briefs left open, and how each was settled.</p>
+            {% if report %}
+                <p class="hub-foot" style="text-align:left;">
+                    <a href="{% url 'home:report' %}" target="_blank" rel="noopener">Open the PDF &rarr;</a>
+                    <span class="dn-file">{{ report.name }}</span></p>
+                <iframe class="dn-pdf" src="{% url 'home:report' %}" title="Implementation report"></iframe>
+            {% else %}
+                <p class="dn-empty">Not built yet. Run
+                    <code class="dn-code">latexmk -pdf HCAI-report.tex</code> in
+                    <code class="dn-code">report/</code>.</p>
+            {% endif %}
+        </div>
+
+        <div class="dn-card">
+            <h2>Use of AI tools</h2>
+            <p class="dn-sub">Rendered from <code class="dn-code">AI_USAGE.md</code> in the
+                repository root, which stays the source of truth. The PDF on the hub is
+                built from the same file by
+                <code class="dn-code">manage.py build_ai_usage</code>.</p>
+            {% if ai_usage %}
+                <div class="dn-doc">{{ ai_usage|safe }}</div>
+            {% else %}
+                <p class="dn-empty">AI_USAGE.md not found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}{% endblock script %}

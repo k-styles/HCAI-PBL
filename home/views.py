@@ -1,5 +1,9 @@
+from django.conf import settings
+from django.http import FileResponse, Http404
 from django.shortcuts import render
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
+from . import devnotes
 from .own_work import REQUIREMENTS, STATES, summary
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -46,7 +50,16 @@ PROJECTS = [
 
 
 def index(request):
-    return render(request, "home/index.html", {"students": GROUP, "projects": PROJECTS})
+    """The hub. The two documents that describe the whole submission -- the
+    implementation report and the AI declaration -- are offered here rather
+    than only from the development-only notes page, because they are
+    deliverables and not development aids."""
+    return render(request, "home/index.html", {
+        "students": GROUP,
+        "projects": PROJECTS,
+        "report": devnotes.report_path(),
+        "ai_usage_pdf": devnotes.ai_usage_pdf_path(),
+    })
 
 
 def own_work(request):
@@ -61,3 +74,48 @@ def own_work(request):
         "total": len(REQUIREMENTS),
         "counts": counts,
     })
+
+
+def _development_only():
+    if not settings.DEBUG:
+        raise Http404("Available during development only.")
+
+
+def notes(request):
+    """The write-up and the AI declaration, readable from inside the app.
+
+    This lives in `home` rather than in a project app because both documents
+    span all four projects; it used to hang off project 1, which meant projects
+    2 to 4 had no way to reach it.
+    """
+    _development_only()
+    return render(request, "home/notes.html", {
+        "page": "notes",
+        "ai_usage": devnotes.ai_usage_html(),
+        "report": devnotes.report_path(),
+    })
+
+
+@xframe_options_sameorigin
+def ai_usage(request):
+    """The AI declaration as a PDF. Not development-gated: it is part of what
+    gets handed in."""
+    path = devnotes.ai_usage_pdf_path()
+    if path is None:
+        raise Http404("Not built yet. Run `manage.py build_ai_usage`.")
+    return FileResponse(open(path, "rb"), content_type="application/pdf",
+                        filename=path.name)
+
+
+@xframe_options_sameorigin
+def report(request):
+    """Served with a same-origin frame exemption so the notes page can embed it.
+
+    Django denies framing for every response by default, which is right for
+    everything else here and blocks the preview iframe.
+    """
+    path = devnotes.report_path()
+    if path is None:
+        raise Http404("The report has not been built yet.")
+    return FileResponse(open(path, "rb"), content_type="application/pdf",
+                        filename=path.name)

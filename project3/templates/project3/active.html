@@ -13,7 +13,7 @@ asking &mdash; and every question costs their time.{% endblock %}
 </div>
 
 <div class="p3-card">
-    <h2>Does choosing beat asking at random? {% info "acquisition" %}</h2>
+    <h2>Does choosing beat asking at random? {% info "acquisition" %}{% info "active-learning" %}</h2>
     <figure class="p3-figure">
         <img src="{{ curves_url }}" alt="Team accuracy against number of expert queries">
     </figure>
@@ -23,7 +23,7 @@ asking &mdash; and every question costs their time.{% endblock %}
 </div>
 
 <div class="p3-card">
-    <h2>The four strategies</h2>
+    <h2>The four strategies{% info "confidence" %}</h2>
     <div class="p3-scroll">
         <table class="p3-table">
             <thead><tr><th>Strategy</th><th>What it asks about</th>
@@ -42,7 +42,7 @@ asking &mdash; and every question costs their time.{% endblock %}
 </div>
 
 <div class="p3-card">
-    <h2>Reading this honestly</h2>
+    <h2>Reading this honestly{% info "query-budget" %}</h2>
     {% if lead > 0.001 %}
         <p>Choosing the questions is worth <strong>{{ lead|floatformat:4 }}</strong> of accuracy
         over asking at random by the last budget, against a run-to-run spread of about

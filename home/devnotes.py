@@ -20,6 +20,14 @@ REPORT_CANDIDATES = [
 
 AI_USAGE = Path(settings.BASE_DIR) / "AI_USAGE.md"
 
+# Built from AI_USAGE.md by `manage.py build_ai_usage`; the markdown stays the
+# source of truth and this is only a rendering of it.
+AI_USAGE_PDF = Path(settings.BASE_DIR) / "docs" / "AI_USAGE.pdf"
+
+
+def ai_usage_pdf_path():
+    return AI_USAGE_PDF if AI_USAGE_PDF.exists() else None
+
 
 def report_path():
     for candidate in REPORT_CANDIDATES:
@@ -39,7 +47,7 @@ def render_markdown(text):
     def inline(s):
         s = html.escape(s)
         s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
-        s = re.sub(r"`(.+?)`", r'<code class="p1-code">\1</code>', s)
+        s = re.sub(r"`(.+?)`", r'<code class="dn-code">\1</code>', s)
         return s
 
     out, rows, bullets, para = [], [], [], []
@@ -49,7 +57,7 @@ def render_markdown(text):
             return
         head, body = rows[0], [r for r in rows[1:] if not set("-: |").issuperset(r)]
         cells = lambda r: [c.strip() for c in r.strip().strip("|").split("|")]
-        out.append('<div class="p1-scroll"><table class="p1-table"><thead><tr>'
+        out.append('<div class="dn-scroll"><table class="dn-table"><thead><tr>'
                    + "".join(f"<th>{inline(c)}</th>" for c in cells(head))
                    + "</tr></thead><tbody>"
                    + "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in cells(r)) + "</tr>"

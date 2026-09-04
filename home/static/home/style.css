@@ -130,3 +130,53 @@ a.hub-card:hover { border-color: #275CB2; box-shadow: 0 4px 14px rgba(39,92,178,
 .ow-where { font-size: 12.5px; color: #7C89A2; }
 .ow-where code { background: #F2F5FA; padding: 2px 6px; border-radius: 4px; color: #34486E; }
 .ow-answer { font-size: 14px; color: #23304A; line-height: 1.6; text-align: left; margin: 9px 0 0; }
+
+/* ---- the written deliverables, on the hub ---- */
+.hub-docs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+    margin: 0 auto;
+    max-width: 1000px;
+}
+.hub-doc {
+    display: flex; flex-direction: column;
+    border: 1px solid #DCE4F0; border-radius: 10px; background: #fff;
+    padding: 15px 17px; text-decoration: none;
+    transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+.hub-doc:hover { border-color: #275CB2; box-shadow: 0 6px 18px rgba(39,92,178,.14);
+    transform: translateY(-2px); }
+.hub-doc.missing { background: #F7F9FC; border-style: dashed; cursor: default;
+    transform: none; box-shadow: none; border-color: #DCE4F0; }
+.hub-doc-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    color: #7C89A2; font-weight: 700; }
+.hub-doc-name { font-size: 16px; font-weight: 600; color: #16233A; margin-top: 4px; }
+.hub-doc-blurb { font-size: 13px; color: #5A677E; margin-top: 7px; line-height: 1.5; flex: 1; }
+.hub-doc-open { font-size: 13px; color: #275CB2; margin-top: 11px; font-weight: 600; }
+.hub-doc.missing .hub-doc-open { color: #A9B4C6; font-weight: 400; }
+
+/* ---- development notes (DEBUG only) ---- */
+.dn-card { border: 1px solid #DCE4F0; border-radius: 10px; background: #fff;
+    padding: 20px 22px; margin: 0 auto 18px; max-width: 1000px; }
+.dn-card > h2 { margin: 0 0 4px; font-size: 19px; color: #16233A;
+    font-family: 'Segoe UI', Tahoma, sans-serif; }
+.dn-sub { margin: 0 0 14px; color: #6B7893; font-size: 14px; text-align: left; }
+.dn-file { font-size: 12.5px; color: #7C89A2; margin-left: 10px; }
+.dn-empty { color: #9B2437; font-size: 14px; text-align: left; }
+.dn-pdf { width: 100%; height: 620px; border: 1px solid #DCE4F0; border-radius: 8px; }
+.dn-doc { text-align: left; font-size: 14.5px; color: #23304A; line-height: 1.62; }
+.dn-doc h1, .dn-doc h2 { font-size: 17px; color: #16233A; margin: 22px 0 6px;
+    font-family: 'Segoe UI', Tahoma, sans-serif; }
+.dn-doc h3 { font-size: 15px; color: #34486E; margin: 16px 0 4px; }
+.dn-doc p { margin: 0 0 11px; }
+.dn-doc ul { margin: 0 0 12px; padding-left: 20px; }
+.dn-doc li { margin-bottom: 5px; }
+.dn-scroll { overflow-x: auto; }
+.dn-doc table, .dn-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 0 0 14px; }
+.dn-doc th, .dn-table th { text-align: left; padding: 8px 10px; background: #F2F6FC; color: #3A4A66;
+    font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+    border-bottom: 1px solid #DCE4F0; }
+.dn-doc td, .dn-table td { padding: 8px 10px; border-bottom: 1px solid #EDF1F8; vertical-align: top; }
+.hub-code, .dn-code { background: #F1F5FB; padding: 1px 6px; border-radius: 4px;
+    font-size: 13px; font-family: ui-monospace, Menlo, monospace; }

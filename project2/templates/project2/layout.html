@@ -18,7 +18,9 @@
         <a href="{% url 'project2:index' %}" class="{% if page == 'model' %}current{% endif %}">1 &middot; The model</a>
         <a href="{% url 'project2:counterfactual' %}" class="{% if page == 'counterfactual' %}current{% endif %}">2 &middot; Counterfactuals</a>
         <a href="{% url 'project2:effects' %}" class="{% if page == 'effects' %}current{% endif %}">3 &middot; Feature effects</a>
+        <a href="{% url 'project2:explain_index' %}" class="{% if page == 'explain' %}current{% endif %}">What do these words mean?</a>
         <a class="quiet" href="{% url 'home:own_work' %}">Our own work</a>
+        {% if debug %}<a class="quiet" href="{% url 'home:notes' %}">Dev notes</a>{% endif %}
     </nav>
 
     <div class="p2-body">

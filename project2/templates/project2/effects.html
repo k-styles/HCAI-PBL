@@ -6,7 +6,7 @@
 
 {% block region %}
 <div class="p2-card">
-    <h2>Pick a feature</h2>
+    <h2>Pick a feature{% info "scaling" %}</h2>
     <p class="p2-sub">Curves come from the model selected above &mdash;
         {% if kind == 'tree' %}the decision tree{% else %}logistic regression{% endif %}
         at Ω = {{ winner.omega }}. One curve per species.</p>
