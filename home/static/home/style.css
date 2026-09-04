@@ -1,3 +1,20 @@
+/* The shared sheet centres .box with position:absolute and a -50% transform,
+   which only works while the page is shorter than the window -- past that the
+   top half sits above the viewport and cannot be scrolled to. Projects 1 to 4
+   each undo it; home never did, and got away with it only because the hub and
+   the own-work page are short. The notes page, with an embedded PDF and the
+   whole AI declaration under it, is not. */
+.box {
+    position: static;
+    transform: none;
+    width: min(1160px, 94%);
+    margin: 26px auto 48px;
+    padding: 0 0 34px;
+    grid-template-rows: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(12, 32, 68, 0.18);
+}
+
 .student-id {
     font-family: monospace;
     color: #555;
