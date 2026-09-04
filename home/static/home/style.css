@@ -209,3 +209,20 @@ a.hub-card:hover { border-color: #275CB2; box-shadow: 0 4px 14px rgba(39,92,178,
 .dn-doc td, .dn-table td { padding: 8px 10px; border-bottom: 1px solid #EDF1F8; vertical-align: top; }
 .hub-code, .dn-code { background: #F1F5FB; padding: 1px 6px; border-radius: 4px;
     font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+
+/* ---- the import audit under each own-work entry ---- */
+.ow-imports { margin-top: 11px; padding: 10px 13px; border-radius: 8px; font-size: 13px;
+    border: 1px solid #C3E3D2; background: #F3FAF6; }
+.ow-imports.dirty { border-color: #F0CBD4; background: #FDF1F4; }
+.ow-imports-head { color: #1E6650; font-weight: 600; margin-bottom: 7px; }
+.ow-imports.dirty .ow-imports-head { color: #9B2437; }
+.ow-mods { display: flex; flex-wrap: wrap; gap: 5px; }
+.ow-mods code { background: #fff; border: 1px solid #D6E5DC; border-radius: 5px;
+    padding: 2px 8px; font-size: 12.5px; color: #24523F;
+    font-family: ui-monospace, Menlo, monospace; }
+.ow-imports.dirty .ow-mods code { border-color: #EBCBD3; color: #8A2233; }
+.ow-none { color: #5F7E70; font-style: italic; }
+.ow-banned { margin-top: 8px; font-size: 12px; color: #6B8478; line-height: 1.9; }
+.ow-banned code { background: #fff; border: 1px solid #DDE7E1; border-radius: 4px;
+    padding: 1px 6px; margin-right: 4px; font-size: 11.5px;
+    font-family: ui-monospace, Menlo, monospace; }

@@ -4,7 +4,7 @@ from django.shortcuts import render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from . import devnotes
-from .own_work import REQUIREMENTS, STATES, summary
+from .own_work import REQUIREMENTS, STATES, library_check, summary
 
 # ══════════════════════════════════════════════════════════════════════════
 # OWN WORK REQUIRED -- Project 1, Task 1
@@ -70,7 +70,7 @@ def own_work(request):
     """
     checked, counts = summary()
     return render(request, "home/own_work.html", {
-        "checked": [(r, state, STATES[state]) for r, state in checked],
+        "checked": [(r, state, STATES[state], library_check(r)) for r, state in checked],
         "total": len(REQUIREMENTS),
         "counts": counts,
     })

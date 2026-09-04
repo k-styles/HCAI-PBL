@@ -35,7 +35,7 @@
                 marker intact.</div>
         {% endif %}
 
-        {% for requirement, state, label in checked %}
+        {% for requirement, state, label, libs in checked %}
             <div class="ow-item">
                 <div class="ow-head">
                     <span class="ow-tag">Project {{ requirement.project }} · {{ requirement.task }}</span>
@@ -45,6 +45,27 @@
                 <blockquote class="ow-quote">{{ requirement.quote }}</blockquote>
                 <div class="ow-where"><code>{{ requirement.where }}</code></div>
                 <p class="ow-answer">{{ requirement.answer }}</p>
+
+                {% if libs %}
+                    <div class="ow-imports {% if libs.clean %}clean{% else %}dirty{% endif %}">
+                        <div class="ow-imports-head">
+                            {% if libs.clean %}
+                                No library does this work &mdash; everything this file imports:
+                            {% else %}
+                                A library that would do this work is imported: {{ libs.hits|join:", " }}
+                            {% endif %}
+                        </div>
+                        <div class="ow-mods">
+                            {% for module in libs.imports %}<code>{{ module }}</code>{% empty %}
+                                <span class="ow-none">nothing outside the standard library</span>
+                            {% endfor %}
+                        </div>
+                        {% if libs.banned %}
+                            <div class="ow-banned">Checked against:
+                                {% for b in libs.banned %}<code>{{ b }}</code>{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
         {% endfor %}
 

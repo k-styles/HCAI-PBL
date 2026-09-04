@@ -10,12 +10,33 @@ file, and `audit()` checks the marker is really there -- so deleting or renaming
 a marked block shows up as a failure on the page instead of quietly passing.
 """
 
-from dataclasses import dataclass
+import ast
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from django.conf import settings
 
 MARKER = "OWN WORK REQUIRED"
+
+# Modules that would do the required work for us. The briefs' "written by you"
+# means "not out of a library", so the honest way to support that claim is to
+# read the file's imports rather than to assert it in prose -- a marker can see
+# the list and check it against the source in the same glance.
+#
+# numpy, pandas and django are not on any list: arithmetic, dataframes and the
+# web framework are not what any brief asked us to implement. sklearn is only
+# forbidden where the brief forbids it; project 2 is *told* to train a tree and
+# a logistic regression, so importing those is required, not a lapse.
+OFF_LIMITS = {
+    "pdp_ale": ["sklearn.inspection", "PartialDependenceDisplay", "partial_dependence",
+                "alibi", "alepython", "PyALE", "shap", "dalex", "interpret"],
+    "counterfactual": ["dice_ml", "alibi", "cfnow", "carla"],
+    "expert": ["modAL", "alipy", "libact", "baal", "small_text"],
+    "active": ["modAL", "alipy", "libact", "baal", "small_text"],
+    "ranking": ["choix", "scipy.optimize", "statsmodels", "pymc", "openskill",
+                "trueskill", "sklearn"],
+    "features": [],
+}
 
 
 @dataclass
@@ -26,6 +47,7 @@ class Requirement:
     kind: str                   # implement | choose | placement
     where: str                  # file that satisfies it, relative to BASE_DIR
     answer: str                 # how it is satisfied
+    forbids: str = ""           # key into OFF_LIMITS, if the brief bans libraries
 
     @property
     def label(self):
@@ -59,7 +81,7 @@ REQUIREMENTS = [
         quote="Pay attention to the type of data. If it is decimal, you can proceed as "
               "above, but what about binary or categorical data? Think of an appropriate "
               "way to noise these kinds of features as well.",
-        where="project2/counterfactuals.py",
+        where="project2/counterfactuals.py", forbids="counterfactual",
         answer="Numeric features get Gaussian noise scaled by each feature's own MAD, so "
                "the perturbation is in the same units the distance is measured in. "
                "Categorical features cannot be nudged — there is no value between two "
@@ -71,7 +93,7 @@ REQUIREMENTS = [
         project=2, task="Task 5", kind="implement",
         quote="The code for the computation of the PDP and ALE values should be written "
               "by you, i.e., do not use a library for them.",
-        where="project2/effects.py",
+        where="project2/effects.py", forbids="pdp_ale",
         answer="PDP and ALE are computed directly from the fitted model's predicted "
                "probabilities and numpy arithmetic. No sklearn.inspection, no PartialDependenceDisplay, "
                "no ALE package — the imports at the top of the file are the whole story."),
@@ -80,7 +102,7 @@ REQUIREMENTS = [
         project=3, task="Task 2", kind="implement",
         quote="Design and implement at least one simulated expert. Analyze its strengths "
               "and weaknesses on the dataset and report its accuracy on the test set.",
-        where="project3/expert.py",
+        where="project3/expert.py", forbids="expert",
         answer="The expert's competence is a function of the input text, not of the true "
                "label. That distinction is the whole game: an expert who is reliable "
                "wherever the label happens to be Sports could never be discovered by "
@@ -91,7 +113,7 @@ REQUIREMENTS = [
         quote="Choose an active learning strategy for querying the expert. The goal is to "
               "efficiently learn when deferral is beneficial. Justify your choice and "
               "report the results using metrics of your choice.",
-        where="project3/acquisition.py",
+        where="project3/acquisition.py", forbids="active",
         answer="The acquisition function targets uncertainty in the deferral decision "
                "rather than in the classifier's own prediction, which is the "
                "instinct to resist here — the classifier's hardest documents are not "
@@ -113,7 +135,7 @@ REQUIREMENTS = [
         quote="Choose a feature representation that you believe is appropriate for a "
               "movie recommender system. Justify your choice of features and write a "
               "method to extract them from the dataset.",
-        where="project4/data.py",
+        where="project4/data.py", forbids="features",
         answer="20 dimensions, chosen by two rules that have nothing to do with which "
                "columns describe a film best. A genre earns a dimension only if two random "
                "films actually differ on it \u2014 probability 2p(1-p), and requiring one "
@@ -129,7 +151,7 @@ REQUIREMENTS = [
         quote="Propose an extension of the Bradley-Terry model capable of modeling a "
               "ranking of i1 \u227b i2 \u227b \u00b7\u00b7\u00b7 \u227b in instead of a single "
               "pairwise comparison. Explain and justify your proposed formulation.",
-        where="project4/preference.py",
+        where="project4/preference.py", forbids="ranking",
         answer="Plackett-Luce: read the ranking as choosing a favourite, then a favourite "
                "of what remains, each stage being Bradley-Terry widened past two items. It "
                "is exactly Bradley-Terry at n = 2, and its pairwise marginals are the "
@@ -144,6 +166,42 @@ REQUIREMENTS = [
 
 def for_project(number):
     return [r for r in REQUIREMENTS if r.project == number]
+
+
+def imports_of(path):
+    """Every module a file imports, read from the syntax tree rather than by
+    grepping, so a name inside a string or a comment cannot be mistaken for an
+    import and an import cannot hide from a regex."""
+    try:
+        tree = ast.parse(Path(path).read_text(errors="ignore"))
+    except (OSError, SyntaxError):
+        return []
+    found = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            found.update(f"{node.module}.{a.name}" for a in node.names)
+            found.add(node.module)
+    return sorted(found)
+
+
+def library_check(requirement):
+    """Does this file import anything that would have done the work for it?
+
+    Returns None when the brief did not forbid libraries for this requirement,
+    so the page can stay quiet rather than making a claim nobody asked for.
+    """
+    if not requirement.forbids:
+        return None
+    banned = OFF_LIMITS.get(requirement.forbids, [])
+    used = imports_of(Path(settings.BASE_DIR) / requirement.where)
+    outside = [m for m in used if not m.startswith(".")]
+    hits = [m for m in outside
+            for b in banned
+            if m == b or m.startswith(b + ".") or b.split(".")[-1] == m.split(".")[-1]]
+    return {"imports": outside, "banned": banned,
+            "hits": sorted(set(hits)), "clean": not hits}
 
 
 # Three outcomes, and the difference matters. "pending" is honest work not yet
