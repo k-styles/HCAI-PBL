@@ -6,6 +6,7 @@
 you have to {% term "complexity" "read" %}. The slider decides how much the second one counts.{% endblock %}
 
 {% block region %}
+{% if species %}{% include "home/_species.html" %}{% endif %}
 <div class="p2-facts">
     <div class="p2-fact"><div class="k">Model</div>
         <div class="v">{% if kind == 'tree' %}Decision tree{% else %}Logistic regression{% endif %}</div></div>

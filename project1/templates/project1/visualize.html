@@ -5,6 +5,8 @@
 {% block lede %}Before choosing a model, see what the columns actually look like.{% endblock %}
 
 {% block panel %}
+{% if species %}{% include "home/_species.html" %}{% endif %}
+
 <div class="p1-facts">
     <div class="p1-fact"><div class="k">Rows</div><div class="v">{{ dataset.n_rows }}</div></div>
     <div class="p1-fact"><div class="k">Features{% info "feature" %}</div><div class="v">{{ dataset.features|length }}</div></div>

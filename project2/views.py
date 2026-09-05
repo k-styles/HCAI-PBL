@@ -4,6 +4,9 @@ from django.shortcuts import redirect, render
 
 from django.http import Http404
 
+from collections import Counter
+
+from home import species
 from home.own_work import for_project
 
 from . import counterfactuals, data, effects, models_lab, plots, treeview
@@ -85,8 +88,18 @@ def index(request):
     token = _token(request)
 
     context = _shared(request, choice, family, hull, bands, winner)
+    # Folded shut unless the reader has opened it before in this session, and
+    # the cards are cheap -- no figure is rendered, the photographs are static
+    # files the browser fetches only once the block is open.
+    if request.GET.get("species") in ("open", "shut"):
+        request.session["project2_species"] = request.GET["species"] == "open"
+
+    penguins = data.load()
+    counts = dict(Counter(penguins.y))
     context.update({
         "page": "model",
+        "species": species.for_dataset("penguins", penguins.classes, counts),
+        "species_open": request.session.get("project2_species", False),
         # Task 3's requirement is about logistic regression's complexity measure,
         # so it only belongs on the page when that is the model being shown.
         "page_requirements": [r for r in for_project(2) if r.task == "Task 3"]

@@ -8,6 +8,8 @@ from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
+from home import species
+
 from . import data, learning, plots
 from .explain import TOPICS, groups
 from .forms import TrainingForm, UploadForm
@@ -119,9 +121,21 @@ def visualize(request):
     token = note["token"]
     pca_url, pca_share = (plots.projection(dataset, token) if len(features) > 2
                           else (None, None))
+    # Photographs only exist for the datasets we ship. An arbitrary uploaded
+    # CSV gets no block at all rather than a broken one.
+    if request.GET.get("species") in ("open", "shut"):
+        request.session["project1_species"] = request.GET["species"] == "open"
+    kind = species.detect(dataset.features)
+    cards = species.for_dataset(
+        kind, [str(c) for c in dataset.classes()],
+        {str(c): int((dataset.y == c).sum()) for c in dataset.classes()}
+    ) if kind and dataset.kind == "classification" else None
+
     context = {
         "page": "look",
         "stamp": int(time.time()),
+        "species": cards,
+        "species_open": request.session.get("project1_species", False),
         "dataset": dataset,
         "name": note["name"],
         "note": note,

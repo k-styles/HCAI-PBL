@@ -125,3 +125,32 @@ button:disabled {
     margin-bottom: 1em ;
     text-indent: 22px ;
 }
+
+/* ---- species photographs ----
+   Lives in the shared sheet because home/_species.html is included by both
+   project 1 and project 2, and neither of those pages loads home's CSS. */
+.sp-block { border: 1px solid #DCE4F0; border-radius: 10px; background: #fff;
+    margin-bottom: 20px; overflow: hidden; }
+.sp-block > summary { list-style: none; cursor: pointer; padding: 14px 18px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    background: #F8FAFE; }
+.sp-block > summary::-webkit-details-marker { display: none; }
+.sp-block > summary::before { content: "▸"; color: #7C89A2; font-size: 12px;
+    transition: transform .12s ease; display: inline-block; }
+.sp-block[open] > summary::before { transform: rotate(90deg); }
+.sp-block > summary:hover { background: #EFF4FC; }
+.sp-title { font-weight: 600; color: #16233A; font-size: 15.5px; }
+.sp-hint { font-size: 12.5px; color: #7C89A2; margin-left: auto; }
+.sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+    gap: 14px; padding: 16px 18px 18px; }
+.sp-card { margin: 0; border: 1px solid #E7EDF6; border-radius: 9px; overflow: hidden;
+    background: #FAFCFF; display: flex; flex-direction: column; }
+.sp-card img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; }
+.sp-card figcaption { padding: 11px 13px 12px; display: flex; flex-direction: column; gap: 3px; }
+.sp-name { font-weight: 600; color: #16233A; font-size: 15px; }
+.sp-latin { font-style: italic; color: #6B7893; font-size: 12.5px; }
+.sp-count { font-size: 12px; color: #275CB2; }
+.sp-note { font-size: 13px; color: #4A5C7D; line-height: 1.5; margin-top: 4px; }
+.sp-credit { font-size: 11px; color: #93A0B4; margin-top: 7px; line-height: 1.45; }
+.sp-credit a { color: #93A0B4; }
+.sp-credit a:hover { color: #275CB2; }

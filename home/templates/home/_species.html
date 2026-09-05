@@ -1,0 +1,32 @@
+{% load static %}
+{% comment %}
+Shared by projects 1 and 2. <details> is closed by default and needs no
+JavaScript; the browser remembers nothing, so `open` is set from the session
+when the reader has already opened it once.
+{% endcomment %}
+<details class="sp-block" {% if species_open %}open{% endif %} id="species">
+    <summary>
+        <span class="sp-title">What do these actually look like?</span>
+        <span class="sp-hint">{{ species|length }} species &middot; photographs, folded away by default</span>
+    </summary>
+
+    <div class="sp-grid">
+        {% for card in species %}
+            <figure class="sp-card">
+                <img src="{% static card.image %}" alt="A {{ card.label }}" loading="lazy">
+                <figcaption>
+                    <span class="sp-name">{{ card.label }}</span>
+                    <span class="sp-latin">{{ card.latin }}</span>
+                    {% if card.count %}<span class="sp-count">{{ card.count }} rows in the data</span>{% endif %}
+                    <span class="sp-note">{{ card.note }}</span>
+                    <span class="sp-credit">
+                        <a href="{{ card.source }}" target="_blank" rel="noopener">{{ card.author }}</a>,
+                        {% if card.licence_url %}<a href="{{ card.licence_url }}" target="_blank" rel="noopener">{{ card.licence }}</a>
+                        {% else %}{{ card.licence }}{% endif %},
+                        via Wikimedia Commons
+                    </span>
+                </figcaption>
+            </figure>
+        {% endfor %}
+    </div>
+</details>

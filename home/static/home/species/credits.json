@@ -1,0 +1,50 @@
+{
+  "chinstrap": {
+    "file": "home/species/chinstrap.jpg",
+    "title": "2019-03-03 Chinstrap penguin on Barrientos Island, Antarctica.jpg",
+    "author": "Gordon Leggett",
+    "licence": "CC BY-SA 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2019-03-03_Chinstrap_penguin_on_Barrientos_Island,_Antarctica.jpg"
+  },
+  "versicolor": {
+    "file": "home/species/versicolor.jpg",
+    "title": "Iridaceae Iris versicolor 1.jpg",
+    "author": "NasserHalaweh",
+    "licence": "CC BY-SA 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Iridaceae_Iris_versicolor_1.jpg"
+  },
+  "virginica": {
+    "file": "home/species/virginica.jpg",
+    "title": "Iris virginica.jpg",
+    "author": "Frank Mayfield",
+    "licence": "CC BY-SA 2.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Iris_virginica.jpg"
+  },
+  "adelie": {
+    "file": "home/species/adelie.jpg",
+    "title": "Adelie penguin (Pygoscelis adeliae), walking.jpg",
+    "author": "Jason Auch",
+    "licence": "CC BY 2.0",
+    "licence_url": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Adelie_penguin_(Pygoscelis_adeliae),_walking.jpg"
+  },
+  "gentoo": {
+    "file": "home/species/gentoo.jpg",
+    "title": "Brown Bluff-2016-Tabarin Peninsula\u2013Gentoo penguin (Pygoscelis papua) 03.jpg",
+    "author": "Godot13",
+    "licence": "CC BY-SA 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Brown_Bluff-2016-Tabarin_Peninsula%E2%80%93Gentoo_penguin_(Pygoscelis_papua)_03.jpg"
+  },
+  "setosa": {
+    "file": "home/species/setosa.jpg",
+    "title": "Iris setosa (152693475).jpg",
+    "author": "Youngrhang Jo",
+    "licence": "CC0",
+    "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Iris_setosa_(152693475).jpg"
+  }
+}
