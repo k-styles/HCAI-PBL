@@ -22,17 +22,21 @@ class Topic:
 class Math(str):
     """A display formula inside a section's paragraph list.
 
-    Subclassing str keeps every existing paragraph a plain string, so nothing
-    else has to change. The template asks for `.is_math`; a plain str has no
-    such attribute and Django resolves that to the empty string, which is
-    falsy -- so the two render differently without any type checking in the
-    template.
+    Subclassing str keeps every other paragraph a plain string, so nothing else
+    changes. The template asks for `.html`, which a plain str does not have --
+    Django resolves that to the empty string, so the two render differently
+    without any type checking in the template.
 
-    Formulas are written in unicode rather than LaTeX. These pages must render
-    with no network and no JavaScript, which rules out MathJax and KaTeX, and
-    the expressions here are small enough that unicode is honest about them.
+    Rendering is done by home.mathfmt: real subscripts, italic variables and
+    upright function names, built as HTML so the pages need no network and no
+    JavaScript. See that module for the notation.
     """
     is_math = True
+
+    @property
+    def html(self):
+        from home.mathfmt import render
+        return render(self)
 
 
 class Aside(str):
@@ -123,20 +127,25 @@ _add(
     slug="competence", title="Competence model", group="How it works",
     short="A second model that predicts whether the expert will be right, from the article alone.",
     sections=[("What it estimates", [
-        "For each article, the probability that the expert answers correctly,",
+        "For each article, the probability that the expert answers it correctly:",
         Math("q(x) = P( m(x) = y | x )"),
-        Aside("m(x) is the expert's prediction, y the true label."),
-        "It is fitted as an ordinary binary classification problem: the inputs are article "
-        "features, and the target is whether the expert was right on that article."]),
+        Aside("m(x) is the expert's prediction and y the true label, so the event inside is “the expert got this one right”."),
+        "Notice what sits after the conditioning bar. The probability is a function of $x$ "
+        "alone, and it has to be: at the moment the deferral decision is taken, the article "
+        "is all anyone has. The true label $y$ is precisely what is unknown.",
+        "It is fitted as an ordinary binary classification problem. The inputs are the "
+        "article\u2019s features; the target is a 0 or 1 recording whether the expert was "
+        "right on it. Any classifier will do, and its predicted probability is $q(x)$."]),
       ("Where the labels come from", [
         "This is where the missing “should we defer” label gets manufactured. You cannot "
-        "observe whether deferral was correct, but you can observe whether the expert was, "
-        "given a queried article. That binary outcome is a legitimate training target."]),
+        "observe whether deferral was the correct decision, but for any article you have "
+        "actually queried you can observe whether the expert was right — and that binary "
+        "outcome is a legitimate training target."]),
       ("Why it must be honest", [
         "The same care is needed as for the classifier: correctness has to be measured on "
         "predictions the model did not fit, or the competence model learns that the expert "
         "is better than they are."])],
-    advice="A competence model that predicts a constant is telling you the expert has no exploitable structure.",
+    advice="A competence model that predicts a near-constant is telling you the expert has no structure worth exploiting.",
     related=["expert", "advantage", "out-of-fold"])
 
 _add(
@@ -204,17 +213,27 @@ _add(
     slug="deferral-precision", title="Deferral precision and recall", group="Measuring",
     short="Of the cases handed over, how many needed it; and of the cases that needed it, how many were caught.",
     sections=[("The definitions", [
-        "Call an article one that “needed deferral” if the expert is right and the machine "
-        "wrong. Then",
+        "Call an article one that “needed deferral” if the expert is right on it and the "
+        "machine wrong. Then",
         Math("precision = (needed ∧ deferred) ⁄ deferred"),
         Math("recall = (needed ∧ deferred) ⁄ needed"),
-        "Precision is how much of the expert's time was well spent. Recall is how much of "
-        "the available benefit was captured."]),
+        "Both share a numerator — the cases handed over that genuinely warranted it — and "
+        "differ only in what they divide by.",
+        "Precision divides by everything deferred, so it answers: of the interruptions you "
+        "caused, what share were worth causing? That is the expert\u2019s perspective, and "
+        "it measures wasted attention.",
+        "Recall divides by everything that needed deferring, so it answers: of the cases "
+        "where handing over would have helped, how many did you catch? That is the "
+        "system\u2019s perspective, and it measures missed benefit."]),
       ("The trade-off", [
-        "Lowering τ raises recall and lowers precision — you catch more of the useful cases "
-        "by handing over more of everything. The two cannot be maximised together, which "
-        "is why a single number cannot describe a deferral policy.",
-        "The harmonic mean of the two is the F1 score, if a single summary is wanted."])],
+        "Lowering the threshold raises recall and lowers precision — you catch more of the "
+        "useful cases by handing over more of everything. A policy that defers the entire "
+        "queue has recall 1 and precision equal to the base rate of useful deferrals, which "
+        "is usually low; a policy that defers one case it is certain about has precision 1 "
+        "and recall near zero.",
+        "Neither extreme is any good, which is exactly why a single number cannot describe "
+        "a deferral policy. The harmonic mean of the two is the F1 score if one summary is "
+        "wanted."])],
     advice="High recall with poor precision means the policy is deferring a lot rather than deferring well.",
     related=["outcomes", "threshold", "oracle"])
 

@@ -1,4 +1,5 @@
 {% extends 'project1/layout.html' %}
+{% load assets %}
 
 {% block heading %}{{ topic.title }}{% endblock %}
 {% block lede %}{{ topic.short }}{% endblock %}
@@ -8,7 +9,7 @@
     {% for heading, paragraphs in topic.sections %}
         <div class="p1-card">
             <h2>{{ heading }}</h2>
-            {% for para in paragraphs %}{% if para.is_math %}<div class="p1-math">{{ para }}</div>{% elif para.is_aside %}<p class="p1-aside">{{ para }}</p>{% else %}<p>{{ para }}</p>{% endif %}{% endfor %}
+            {% for para in paragraphs %}{% if para.is_math %}<div class="p1-math">{{ para.html }}</div>{% elif para.is_aside %}<p class="p1-aside">{{ para|maths }}</p>{% else %}<p>{{ para|maths }}</p>{% endif %}{% endfor %}
         </div>
     {% endfor %}
 

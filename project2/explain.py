@@ -17,17 +17,21 @@ class Topic:
 class Math(str):
     """A display formula inside a section's paragraph list.
 
-    Subclassing str keeps every existing paragraph a plain string, so nothing
-    else has to change. The template asks for `.is_math`; a plain str has no
-    such attribute and Django resolves that to the empty string, which is
-    falsy -- so the two render differently without any type checking in the
-    template.
+    Subclassing str keeps every other paragraph a plain string, so nothing else
+    changes. The template asks for `.html`, which a plain str does not have --
+    Django resolves that to the empty string, so the two render differently
+    without any type checking in the template.
 
-    Formulas are written in unicode rather than LaTeX. These pages must render
-    with no network and no JavaScript, which rules out MathJax and KaTeX, and
-    the expressions here are small enough that unicode is honest about them.
+    Rendering is done by home.mathfmt: real subscripts, italic variables and
+    upright function names, built as HTML so the pages need no network and no
+    JavaScript. See that module for the notation.
     """
     is_math = True
+
+    @property
+    def html(self):
+        from home.mathfmt import render
+        return render(self)
 
 
 class Aside(str):
@@ -296,8 +300,16 @@ _add(slug="counterfactual", title="Counterfactual explanation", group="Counterfa
          "Wachter et al. pose it as a minimisation balancing achieving the target class "
          "against staying close to the original point,",
          Math("argmin_{x′}  λ ( f̂(x′) − y′ )²  +  d(x, x′)"),
-         "The first term demands the desired outcome, the second demands proximity, and λ "
-         "sets the exchange rate between them."]),
+         "The variable being optimised is $x′$, the counterfactual point itself — you are "
+         "searching over possible penguins, not over model parameters.",
+         "The first term is squared error between the model's output at $x′$ and the target "
+         "outcome $y′$, so it is zero when the counterfactual really does get the class you "
+         "asked for and grows as it falls short. The second term $d(x, x′)$ is the distance "
+         "back to the original example, so it grows as the counterfactual drifts away.",
+         "Minimising the sum therefore pulls in two directions at once, and $λ$ sets the "
+         "exchange rate: large $λ$ insists on achieving the target class even at the cost "
+         "of a distant, implausible point; small $λ$ prefers staying close even if the "
+         "flip is only marginal."]),
        ("What is implemented here", [
          "Rather than optimising, this project samples: draw many perturbed points around "
          "x, keep those the model assigns to the target class, and rank them by distance. "
@@ -360,26 +372,38 @@ _add(slug="noising", title="Noising categorical features", group="Counterfactual
 _add(slug="pdp", title="Partial dependence plot (PDP)", group="Feature effects",
      short="The average predicted probability as one feature is swept, holding the others at their observed values.",
      sections=[("The definition", [
-         "Split the features into the one of interest, A, and the rest, B. The partial "
-         "dependence is the expectation of the model output over the marginal distribution "
-         "of B,"]),
-       ("Formally", [
+         "Split the features into the one of interest, $A$, and the rest, $B$. The partial "
+         "dependence is the expected model output when $x_A$ is held at a chosen value and "
+         "$x_B$ is allowed to vary as it does in the data:",
          Math("PD_f(x_A) = E_{x_B ∼ D|B} [ f(x_A, x_B) ]"),
-         "estimated by the obvious average over the dataset,",
-         Math("PD̂_f(v) = (1/n) Σᵢ f(v, x_B⁽ⁱ⁾)"),
-         "In words: pin the feature to v everywhere, leave every other feature as it "
-         "actually is, predict, average. Repeat across a grid of v."]),
+         "The subscript is the part that matters: the expectation is over the marginal "
+         "distribution of $x_B$ — the distribution of the other features on their own, "
+         "ignoring what $x_A$ happens to be.",
+         "Estimating it needs no theory. Replace the expectation with an average over the "
+         "dataset:",
+         Math("PD_f(v) ≈ (1⁄n) Σ_i f(v, x_B^{(i)})"),
+         "So the recipe is: pin the feature to $v$ on every row, leave every other column "
+         "untouched, predict, average. Repeat for each $v$ on a grid and join the points. "
+         "That is genuinely the whole algorithm, which is why the brief can reasonably ask "
+         "you to write it yourself."]),
        ("The problem", [
-         "The expectation is over the marginal distribution of B, which ignores that B "
-         "depends on A. Lecture 3's example is apartment price: the PDP for size evaluates "
-         "the model at 30 m² on every row, including rows with eight rooms.",
-         "The model answers, because models always answer, and the answer is an "
-         "extrapolation into a region with no data. Those answers are then averaged in "
-         "with the sensible ones."]),
+         "Because the expectation is over the marginal distribution, the procedure ignores "
+         "that $x_B$ depends on $x_A$. Setting $x_A = v$ on every row constructs rows that "
+         "may be impossible.",
+         "Lecture 3's example is apartment price. The PDP for size evaluates the model at "
+         "30 m² on every row, including the rows describing eight-room apartments. You have "
+         "asked what a 30 m² apartment with eight rooms costs.",
+         "The model answers, because models always answer. That answer is an extrapolation "
+         "into a region containing no training data, so it is essentially arbitrary — and "
+         "it is then averaged in with the sensible ones, at equal weight."]),
        ("In this dataset", [
-         "Flipper length and body mass are strongly correlated — larger birds are larger "
-         "everywhere. The PDP for flipper length therefore asks the model about penguins "
-         "with 230 mm flippers and a 3,000 g body, which do not exist."])],
+         "Flipper length and body mass are strongly correlated: larger birds are larger in "
+         "every dimension. The PDP for flipper length therefore asks the model about "
+         "penguins with 230 mm flippers and a 3,000 g body — a bird shaped like nothing in "
+         "the data.",
+         "The distortion is worst at the ends of the range, where the conflict between the "
+         "pinned value and the untouched columns is sharpest. A PDP that bends oddly near "
+         "its edges is usually showing you extrapolation rather than a real effect."])],
      advice="Compare the PDP against the ALE curve; where they diverge is where correlation was distorting it.",
      related=["ale", "correlation"])
 
@@ -390,41 +414,83 @@ _add(slug="ale", title="Accumulated local effects (ALE)", group="Feature effects
          "rate of change, using only points that are actually in that neighbourhood. Then "
          "add those local changes up across the range."]),
        ("Formally", [
-         Math("ALE_f(x_A) = ∫ E_{x_B | z_A} [ ∂f(z_A, x_B) ⁄ ∂z_A ] dz_A  −  C"),
-         Aside("C is chosen so the curve has mean zero, which fixes the otherwise arbitrary constant of integration."),
-         "Conditioning on z_A keeps the data realistic, as an M-plot does. Taking a "
-         "derivative removes the contribution of whatever is correlated with A, which an "
-         "M-plot cannot do."]),
+         Math("ALE_f(x_A) = ∫ E_{x_B | z_A} [ ∂f(z_A, x_B) ⁄ ∂z_A ] dz_A − C"),
+         "Read it from the inside out. The innermost piece, $∂f(z_A, x_B) ⁄ ∂z_A$, is the "
+         "slope of the model with respect to the feature of interest at a particular point "
+         "— how fast the predicted probability moves if you nudge $x_A$ and change nothing "
+         "else.",
+         "The expectation $E_{x_B | z_A}$ averages that slope over the other features, but "
+         "conditionally: only over the values of $x_B$ that actually occur alongside "
+         "$z_A$. This is the step that keeps the model away from combinations that do not "
+         "exist. A PDP averages over the marginal distribution instead and therefore has "
+         "no such protection.",
+         "The integral then accumulates those averaged slopes from the left edge of the "
+         "range up to $x_A$. Slopes are local statements; the integral turns a sequence of "
+         "them into a curve you can read as a level.",
+         Aside("C is subtracted so the curve has mean zero. Integrating a derivative leaves an arbitrary constant, and centring is simply a convention for pinning it down."),
+         "In practice the integral is a sum. The feature's range is cut into bins; within "
+         "each bin the model is evaluated at the two edges for every point that falls "
+         "there, and the differences are averaged; those bin-level averages are then "
+         "cumulatively summed. So the continuous formula above describes a computation "
+         "that is a handful of numpy lines."]),
        ("Why M-plots are not the fix", [
-         "The obvious repair to the PDP is to use the conditional distribution E[·|x_A], "
-         "giving an M-plot. It only ever probes realistic points, but it mixes effects: "
-         "when flipper length rises, body mass rises with it, so the curve reflects both. "
-         "Lecture 3 puts it as “they do not isolate the feature effects of x_A alone”."]),
+         "The obvious repair to the PDP is to use the conditional distribution, "
+         "$E[· | x_A]$, giving an M-plot. It only ever probes realistic points, but it "
+         "mixes effects: when flipper length rises, body mass rises with it, so the curve "
+         "reflects both. Lecture 3 puts it as “they do not isolate the feature effects of "
+         "$x_A$ alone”.",
+         "ALE gets both properties at once. Conditioning on $z_A$ keeps the data realistic, "
+         "exactly as an M-plot does. Taking a derivative is what removes the correlated "
+         "contribution — a derivative measures the change caused by moving $x_A$, and "
+         "anything that merely happens to sit alongside $x_A$ contributes no slope."]),
        ("The derivative", [
-         "For logistic regression the model is differentiable and the softmax derivative "
-         "is available in closed form,",
-         Math("∂P(y=c|x) ⁄ ∂xⱼ = P(y=c|x) · ( w_{c,j} − Σₖ P(y=k|x) w_{k,j} )"),
-         "For a decision tree the prediction is piecewise constant, so the derivative is "
-         "zero almost everywhere and undefined exactly at the split points — where all the "
-         "behaviour is. There the only honest option is a finite difference across bin "
-         "edges. Both routes are implemented and the page states which produced the curve."])],
+         "Whether that derivative is available in closed form depends on the model, which "
+         "is exactly what the brief asks you to work out.",
+         "Logistic regression is differentiable everywhere, and the softmax derivative can "
+         "be written down:",
+         Math("∂P(y=c|x) ⁄ ∂x_j = P(y=c|x) · ( w_{c,j} − Σ_k P(y=k|x) w_{k,j} )"),
+         "The structure is worth reading. The class's own weight $w_{c,j}$ pushes the "
+         "probability up, but the average weight across all classes — weighted by their "
+         "current probabilities — is subtracted. So what matters is not how much feature "
+         "$j$ favours class $c$ in absolute terms, but how much more it favours $c$ than "
+         "the competition. That subtraction is why the probabilities continue to sum to "
+         "one as the feature moves.",
+         "A decision tree gives no such expression. Its prediction is piecewise constant: "
+         "flat inside every leaf, jumping at the boundaries. The derivative is therefore "
+         "zero almost everywhere and undefined precisely at the split points, which is "
+         "where all the behaviour lives.",
+         "So for a tree the only honest route is a finite difference — evaluate the model "
+         "at both edges of a bin and divide by the width. Both paths are implemented, and "
+         "the page states which one produced the curve you are looking at."])],
      advice="ALE curves are centred at zero, so read them as deviations from the average prediction rather than as probabilities.",
      related=["pdp", "correlation", "logistic"])
 
 _add(slug="correlation", title="Correlated features", group="Feature effects",
      short="When two features move together, effects attributed to one may belong to the other.",
-     sections=[("What it means", [
-         "The Pearson correlation between two features is their covariance divided by the "
-         "product of their standard deviations,",
-         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)  ∈  [−1, 1]"),
-         "In these data flipper length and body mass sit high on this scale: bigger "
+     sections=[("The measure", [
+         "The Pearson correlation of two features is their covariance divided by the product "
+         "of their standard deviations:",
+         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)"),
+         "The covariance in the numerator is large when the two are above their means "
+         "together and negative when one is high while the other is low. On its own it is "
+         "in the product of the two features\u2019 units, so it cannot be compared across "
+         "pairs.",
+         "Dividing by both standard deviations strips those units away and confines the "
+         "result to $[−1, 1]$: $+1$ is a perfect increasing linear relationship, $−1$ a "
+         "perfect decreasing one, $0$ no linear relationship at all.",
+         "In these data flipper length and body mass sit high on that scale — bigger "
          "penguins have both."]),
        ("Why it matters for explanations", [
          "It makes the model under-determined in a specific way. Two nearly collinear "
          "features can trade weight between them with almost no change in predictions, so "
-         "the coefficients are not stable and should not be read as importances.",
-         "It also breaks the PDP, which constructs combinations the correlation says are "
-         "impossible. ALE exists precisely because of this."])],
+         "the fitted coefficients are unstable and should not be read as importances.",
+         "It also breaks the PDP, which constructs feature combinations the correlation says "
+         "should not occur. ALE exists precisely because of this."]),
+       ("What it does not tell you", [
+         "Correlation captures only linear dependence. Two features can be perfectly related "
+         "— one the square of the other — and still show $ρ$ near zero. And it says nothing "
+         "about causation: two features may move together because one drives the other, or "
+         "because a third drives both."])],
      advice="Check the correlation matrix before reading any feature-effect plot; it tells you which curves to distrust.",
      related=["pdp", "ale", "coefficient"])
 
@@ -432,8 +498,12 @@ _add(slug="scaling", title="Standardisation", group="Models",
      short="Rewriting each feature as how many standard deviations it sits from the mean.",
      sections=[("The transformation", [
          Math("z = (x − μ) ⁄ σ"),
-         "After it, every feature has mean 0 and standard deviation 1, so a change of 1 "
-         "means the same amount in every feature."]),
+         "Subtracting the mean $μ$ moves the feature so it is centred on zero; dividing by "
+         "the standard deviation $σ$ rescales it so its spread is one. The transformation "
+         "is linear and reversible, so no information is lost — only the units change.",
+         "Afterwards every feature has mean 0 and standard deviation 1, so a change of 1 "
+         "means the same thing everywhere: one standard deviation of that feature as it "
+         "occurs in this dataset."]),
        ("Why it is needed", [
          "Logistic regression with a penalty is not scale-invariant: the penalty ‖w‖ "
          "treats all coefficients alike, so a feature measured in grams would be penalised "

@@ -23,17 +23,21 @@ class Topic:
 class Math(str):
     """A display formula inside a section's paragraph list.
 
-    Subclassing str keeps every existing paragraph a plain string, so nothing
-    else has to change. The template asks for `.is_math`; a plain str has no
-    such attribute and Django resolves that to the empty string, which is
-    falsy -- so the two render differently without any type checking in the
-    template.
+    Subclassing str keeps every other paragraph a plain string, so nothing else
+    changes. The template asks for `.html`, which a plain str does not have --
+    Django resolves that to the empty string, so the two render differently
+    without any type checking in the template.
 
-    Formulas are written in unicode rather than LaTeX. These pages must render
-    with no network and no JavaScript, which rules out MathJax and KaTeX, and
-    the expressions here are small enough that unicode is honest about them.
+    Rendering is done by home.mathfmt: real subscripts, italic variables and
+    upright function names, built as HTML so the pages need no network and no
+    JavaScript. See that module for the notation.
     """
     is_math = True
+
+    @property
+    def html(self):
+        from home.mathfmt import render
+        return render(self)
 
 
 class Aside(str):
@@ -167,11 +171,24 @@ _add(slug="bradley-terry", title="The Bradley–Terry model", group="The model",
 _add(slug="plackett-luce", title="The Plackett–Luce model", group="The model",
      short="Bradley–Terry extended from a single pair to a full ranking.",
      sections=[("The construction", [
-         "Read a ranking as a sequence of choices: a favourite out of ten, then out of the "
-         "nine remaining, then eight. Each stage is a Luce choice over what is left, so "
-         "multiply the stages:",
-         Math("P(i₁ ≻ i₂ ≻ ⋯ ≻ iₙ) = ∏ₖ  e^{U_{iₖ}} ⁄ Σ_{l ≥ k} e^{U_{i_l}}"),
-         "The final factor is 1 and is dropped."]),
+         "Read a ranking not as one object but as a sequence of choices: a favourite out of "
+         "ten, then a favourite of the nine remaining, then of the eight after that. Each "
+         "stage is an ordinary Luce choice over whatever is still available, so the "
+         "probability of the whole ranking is the product of the stages:",
+         Math("P(i_1 ≻ i_2 ≻ ⋯ ≻ i_n) = ∏_k  e^{U_{i_k}} ⁄ Σ_{l ≥ k} e^{U_{i_l}}"),
+         "Take the pieces in turn. The numerator $e^{U_{i_k}}$ is the exponentiated utility "
+         "of the film actually chosen at stage $k$. The denominator sums that same quantity "
+         "over $l ≥ k$ — over the films still in the running at that stage, the chosen one "
+         "included.",
+         "The condition $l ≥ k$ is the whole mechanism. At stage 1 the sum runs over all "
+         "ten films; at stage 2 the first has been removed so it runs over nine; and so on. "
+         "Each factor is a softmax over a shrinking set, which is what choosing without "
+         "replacement means written as probability.",
+         "The product runs to $n − 1$, not $n$. Once nine films are placed the tenth is "
+         "determined, and its factor would be a sum over a single item divided by itself — "
+         "that is, 1. Multiplying by it changes nothing, so it is dropped.",
+         Aside("With ten films this gives nine factors, so a single ranking contributes nine terms to the log-likelihood rather than one."),
+     ]),
        ("Why this is the right extension", [
          "At n = 2 the product has a single factor and is exactly Bradley–Terry, so nothing "
          "was replaced.",
@@ -193,21 +210,34 @@ _add(slug="plackett-luce", title="The Plackett–Luce model", group="The model",
 _add(slug="iia", title="Luce's choice axiom", group="The model",
      short="The assumption that adding options does not change the relative odds of the others.",
      sections=[("The property", [
-         "Independence of irrelevant alternatives: the odds of preferring i to j do not "
-         "depend on what else is in the set.",
-         Math("P(i ≻ j) ⁄ P(j ≻ i) = e^{U_i} ⁄ e^{U_j}   for every choice set"),
-         "It follows directly from the ratio form of the Luce model, since the shared "
-         "denominator cancels."]),
+         "Independence of irrelevant alternatives: the odds of preferring $i$ to $j$ do not "
+         "depend on what else happens to be in the set.",
+         Math("P(i ≻ j) ⁄ P(j ≻ i) = e^{U_i} ⁄ e^{U_j}"),
+         "The reason is visible in the Luce model itself. Both probabilities are formed by "
+         "dividing by the same normalising sum over the whole choice set, so taking their "
+         "ratio cancels it. Whatever else is present scales numerator and denominator "
+         "identically and drops out.",
+         "That cancellation is convenient — it is what makes the pairwise marginals clean, "
+         "and therefore what lets the two study designs be compared at all. It is also a "
+         "strong empirical claim about how people behave, and it is false."]),
        ("Where it fails", [
-         "The standard counterexample is the red-bus/blue-bus problem: someone indifferent "
-         "between a car and a bus should not become less likely to take the car merely "
-         "because the bus is repainted in two colours — yet the model says they do.",
-         "The film version: put two near-identical sequels in a set of ten and people tend "
-         "to push both down, splitting their appeal. Bradley–Terry and Plackett–Luce cannot "
-         "represent that, because it is exactly what the axiom forbids.",
-         "Design 2 shows ten films at once and is therefore more exposed to this than "
-         "Design 1, which never shows more than two — so the violation is confounded with "
-         "the manipulation being tested."])],
+         "The standard counterexample is the red-bus/blue-bus problem. Someone choosing "
+         "between a car and a bus, indifferent at 50/50, should not become less likely to "
+         "take the car merely because the bus company repaints half its fleet. The axiom "
+         "says the car keeps a third of the vote once there are three options; intuition "
+         "says it keeps half, because the two buses are the same option wearing different "
+         "paint.",
+         "The film version: put two near-identical sequels into a set of ten and people tend "
+         "to push both down, splitting their appeal between them. Bradley–Terry and "
+         "Plackett–Luce cannot represent that, because it is precisely what the axiom "
+         "forbids."]),
+       ("Why it matters for this study", [
+         "Design 2 shows ten films at once and is therefore far more exposed to the "
+         "violation than Design 1, which never shows more than two. So the flaw is "
+         "confounded with the manipulation being tested — any disadvantage measured for "
+         "ranking might be the interface, or might be the model failing on ranked sets.",
+         "That is recorded as a threat to validity rather than fixed, since fixing it would "
+         "mean abandoning the Luce family the brief specifies."])],
      advice="If a set of ten ever felt like it contained duplicates, this is why that matters.",
      related=["plackett-luce", "bradley-terry", "validity"])
 
@@ -216,18 +246,32 @@ _add(slug="iia", title="Luce's choice axiom", group="The model",
 _add(slug="map", title="How w is fitted", group="Fitting",
      short="Choose the w that makes your actual answers most probable, pulled gently toward zero.",
      sections=[("The objective", [
-         "Every candidate w assigns a probability to the answers you gave. Take the one "
-         "maximising that, penalised so it stays finite:",
-         Math("ŵ = argmax_w  Σ_responses log P(response | w)  −  ‖w‖² ⁄ (2σ²)"),
-         "This is maximum a posteriori estimation — maximum likelihood plus a prior."]),
+         "Every candidate $w$ assigns a probability to the answers you actually gave. Take "
+         "the one that maximises it, penalised so the search stays finite:",
+         Math("ŵ = argmax_w  Σ log P(response | w)  −  ‖w‖² ⁄ (2σ²)"),
+         "The first term is the log-likelihood — the Plackett–Luce probability of your "
+         "answers, summed over responses because independent probabilities multiply and "
+         "logs turn products into sums. The second is the penalty from the prior, which "
+         "grows with the squared length of $w$ and so charges for extreme opinions.",
+         "This is maximum a posteriori estimation: maximum likelihood with a prior attached. "
+         "Setting $σ → ∞$ removes the penalty and recovers plain maximum likelihood."]),
        ("How it is found", [
-         "By gradient ascent. The gradient of the log-likelihood has a clean form: at each "
-         "stage it is the chosen film's features minus a probability-weighted average over "
-         "the films still available,",
-         Math("∇_w = Σₖ ( x_{iₖ} − Σ_{l ≥ k} p_l x_{i_l} )"),
-         "The objective is strictly concave — a concave log-likelihood plus a strictly "
-         "concave penalty — so a vanishing gradient certifies the global optimum. There are "
-         "no local maxima to worry about."])],
+         "By gradient ascent. Differentiating the log of the Plackett–Luce product gives a "
+         "form worth reading:",
+         Math("∇_w = Σ_k ( x_{i_k} − Σ_{l ≥ k} p_l x_{i_l} )"),
+         "At each stage the gradient is the chosen film\u2019s features minus a "
+         "probability-weighted average of the features still available. So it is a "
+         "comparison: what you picked, against what the model currently expected you to "
+         "pick.",
+         "If the model already gives almost all the probability to the film you chose, that "
+         "weighted average is nearly the chosen film\u2019s own features, the difference is "
+         "close to zero, and your answer moves $w$ hardly at all. The gradient is largest "
+         "when you choose something the model thought unlikely — the formal version of the "
+         "obvious idea that surprising answers are the informative ones.",
+         "The objective is strictly concave: a concave log-likelihood plus a strictly "
+         "concave quadratic penalty. A vanishing gradient therefore certifies the global "
+         "optimum, with no local maxima to escape, which is why plain gradient ascent with a "
+         "line search suffices and no cleverer optimiser is needed."])],
      advice="More answers means the pull toward zero matters less, so a longer session gives sharper weights.",
      related=["prior", "preference-vector", "identifiability"])
 

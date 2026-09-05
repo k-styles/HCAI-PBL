@@ -1,11 +1,12 @@
 {% extends 'project2/layout.html' %}
+{% load assets %}
 {% block heading %}{{ topic.title }}{% endblock %}
 {% block lede %}{{ topic.short }}{% endblock %}
 {% block region %}
 <div class="p2-explain">
     {% for heading, paragraphs in topic.sections %}
         <div class="p2-card"><h2>{{ heading }}</h2>
-            {% for para in paragraphs %}{% if para.is_math %}<div class="p2-math">{{ para }}</div>{% elif para.is_aside %}<p class="p2-aside">{{ para }}</p>{% else %}<p>{{ para }}</p>{% endif %}{% endfor %}</div>
+            {% for para in paragraphs %}{% if para.is_math %}<div class="p2-math">{{ para.html }}</div>{% elif para.is_aside %}<p class="p2-aside">{{ para|maths }}</p>{% else %}<p>{{ para|maths }}</p>{% endif %}{% endfor %}</div>
     {% endfor %}
     {% if topic.advice %}
         <div class="p2-note calm"><p><strong>In practice:</strong> {{ topic.advice }}</p></div>

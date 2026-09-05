@@ -139,14 +139,34 @@ h2 .p3-info { width: 15px; height: 15px; font-size: 10.5px; position: relative; 
 .p3-explain { max-width: 760px; margin: 0 auto; }
 .p3-explain .p3-card p { line-height: 1.62; margin: 0 0 12px; }
 
-/* ---- display formulas in the explanation pages ---- */
-.p3-math {
-    margin: 16px auto; padding: 13px 18px; text-align: center;
-    background: #F7F9FC; border: 1px solid #E3EAF4; border-radius: 8px;
-    font-family: 'Cambria Math', Cambria, Georgia, 'Times New Roman', serif;
-    font-size: 17px; line-height: 1.6; color: #16233A; overflow-x: auto;
-}
 .p3-aside {
     font-size: 13.5px; color: #6B7893; margin: -4px 0 12px;
     padding-left: 12px; border-left: 2px solid #DCE4F0;
 }
+
+/* ---- display formulas in the explanation pages ---- */
+.p3-math {
+    margin: 18px auto; padding: 15px 20px; text-align: center;
+    background: #F8FAFE; border: 1px solid #E3EAF4; border-radius: 8px;
+    font-family: 'Latin Modern Math', 'Cambria Math', Cambria, Georgia,
+                 'Times New Roman', serif;
+    font-size: 18px; line-height: 1.75; color: #16233A; overflow-x: auto;
+    white-space: nowrap;
+}
+.p3-math i { font-style: italic; padding-right: 0.02em; }
+.p3-math sub, .p3-math sup { font-size: 0.68em; line-height: 0; }
+.p3-math sub { vertical-align: -0.28em; }
+.p3-math sup { vertical-align: 0.52em; }
+.p3-math .mf-op { font-style: normal; padding: 0 0.12em; }
+.p3-math .mf-rel { font-style: normal; margin: 0 0.42em; }
+.p3-aside {
+    font-size: 13.5px; color: #6B7893; margin: -6px 0 14px;
+    padding-left: 12px; border-left: 2px solid #DCE4F0; line-height: 1.55;
+}
+.p3-card i, .p3-aside i { font-style: italic;
+    font-family: 'Latin Modern Math', 'Cambria Math', Cambria, Georgia, serif; }
+.p3-card sub, .p3-card sup, .p3-aside sub, .p3-aside sup { font-size: 0.72em; line-height: 0; }
+.p3-card sub, .p3-aside sub { vertical-align: -0.25em; }
+.p3-card sup, .p3-aside sup { vertical-align: 0.45em; }
+.p3-card .mf-op, .p3-aside .mf-op { font-style: normal; }
+.p3-card .mf-rel, .p3-aside .mf-rel { font-style: normal; margin: 0 0.25em; }

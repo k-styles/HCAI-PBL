@@ -27,17 +27,21 @@ class Topic:
 class Math(str):
     """A display formula inside a section's paragraph list.
 
-    Subclassing str keeps every existing paragraph a plain string, so nothing
-    else has to change. The template asks for `.is_math`; a plain str has no
-    such attribute and Django resolves that to the empty string, which is
-    falsy -- so the two render differently without any type checking in the
-    template.
+    Subclassing str keeps every other paragraph a plain string, so nothing else
+    changes. The template asks for `.html`, which a plain str does not have --
+    Django resolves that to the empty string, so the two render differently
+    without any type checking in the template.
 
-    Formulas are written in unicode rather than LaTeX. These pages must render
-    with no network and no JavaScript, which rules out MathJax and KaTeX, and
-    the expressions here are small enough that unicode is honest about them.
+    Rendering is done by home.mathfmt: real subscripts, italic variables and
+    upright function names, built as HTML so the pages need no network and no
+    JavaScript. See that module for the notation.
     """
     is_math = True
+
+    @property
+    def html(self):
+        from home.mathfmt import render
+        return render(self)
 
 
 class Aside(str):
@@ -129,20 +133,29 @@ _add(slug="model", title="Model", group="The basics",
 _add(slug="knn", title="k-nearest neighbours", group="Models",
      short="Predicts by looking up the k most similar rows and taking a vote.",
      sections=[("How it works", [
-         "To classify a new point, find the k training rows closest to it and return the "
-         "majority label. Closeness is Euclidean distance by default,",
-         Math("d(x, x′) = √( Σⱼ (xⱼ − x′ⱼ)² )"),
-         "For regression it averages the neighbours' values instead of voting."]),
+         "To classify a new point, find the $k$ training rows closest to it and return the "
+         "majority label among them. Closeness means Euclidean distance by default:",
+         Math("d(x, x′) = √( Σ_j (x_j − x′_j)² )"),
+         "The sum runs over features, so every column contributes its squared difference, "
+         "and the square root converts the total back into the original units. It is the "
+         "straight-line distance you would measure with a ruler, generalised past three "
+         "dimensions.",
+         "That formula is also why the method is so sensitive to scale. A feature measured "
+         "in grams contributes differences in the thousands; one in centimetres contributes "
+         "differences of a few. Squaring widens the gap further, so without standardising, "
+         "the distance is decided by whichever column happens to carry the largest units — "
+         "whether or not it carries any signal.",
+         "For regression the same neighbours are found and their target values averaged "
+         "rather than voted on."]),
        ("What is unusual about it", [
-         "There is no training. The model is the dataset — all the work happens at "
+         "There is no training step. The model is the dataset — all the work happens at "
          "prediction time, which makes fitting instant and prediction slow. Methods like "
          "this are called lazy or instance-based learners."]),
-       ("Its weakness", [
-         "It depends entirely on the distance, so it is very sensitive to feature scaling: "
-         "a feature measured in thousands dominates one measured in units regardless of "
-         "which matters. It also degrades in high dimensions, where distances between all "
-         "pairs of points become nearly equal."])],
-     advice="Always standardise the features before using it; without that the distance is measuring units rather than similarity.",
+       ("Where it struggles", [
+         "In high dimensions the distances between all pairs of points become nearly equal, "
+         "so “nearest” stops meaning much. This is one face of the curse of dimensionality, "
+         "and it is why k-NN works well on a handful of features and poorly on hundreds."])],
+     advice="Always standardise before using it; otherwise the distance measures units rather than similarity.",
      related=["hyperparameter-k", "scaling", "model"])
 
 _add(slug="tree", title="Decision tree", group="Models",
@@ -364,16 +377,23 @@ _add(slug="cross-validation", title="k-fold cross-validation", group="Measuring"
 _add(slug="accuracy", title="Accuracy", group="Measuring",
      short="The fraction of predictions that are correct.",
      sections=[("Definition", [
-         Math("acc = (1/n) Σᵢ 1[ ŷᵢ = yᵢ ]"),
-         Aside("1[·] is 1 when the condition holds and 0 otherwise."),
-         "Easy to read and easy to misuse."]),
+         Math("acc = (1⁄n) Σ_i 1[ ŷ_i = y_i ]"),
+         Aside("1[·] is the indicator function: 1 when the condition inside holds, 0 otherwise."),
+         "The indicator turns each row into a 1 or a 0, so the sum counts correct "
+         "predictions and dividing by $n$ turns that count into a proportion between 0 and "
+         "1.",
+         "Notice what does not appear: nothing about the prediction survives except whether "
+         "it was right. A model that was 51% sure and a model that was 99% sure score "
+         "identically. That is why accuracy is easy to read, and also why it discards "
+         "information that other measures use."]),
        ("When it misleads", [
-         "With imbalanced classes it is dominated by the majority. If 95% of rows are one "
-         "class, predicting that class always scores 0.95 while being worthless — the "
+         "With imbalanced classes it is dominated by the majority. If 95% of rows belong to "
+         "one class, always predicting that class scores 0.95 while being worthless — the "
          "accuracy paradox.",
-         "Accuracy also treats every error alike, which is rarely true: in screening, a "
-         "missed case and a false alarm have very different costs, and no algorithm can know "
-         "the ratio."])],
+         "Accuracy also treats every error alike, which is rarely true in practice. In "
+         "medical screening a missed case and a false alarm carry very different costs, and "
+         "no algorithm can know the ratio: it is a fact about the world, not about the "
+         "data."])],
      advice="Always read accuracy beside the class balance, and prefer macro-F1 when the classes are uneven.",
      related=["class-balance", "macro-f1", "confusion-matrix"])
 
@@ -412,33 +432,47 @@ _add(slug="r-squared", title="R², coefficient of determination", group="Measuri
 _add(slug="mse", title="Mean squared error", group="Measuring",
      short="The average squared gap between prediction and truth.",
      sections=[("Definition", [
-         Math("MSE = (1/n) Σᵢ (yᵢ − ŷᵢ)²"),
-         "It is the loss ℓ(y, y′) = (y − y′)² from lecture 1's ridge example, averaged over "
-         "the data."]),
+         Math("MSE = (1⁄n) Σ_i (y_i − ŷ_i)²"),
+         "Here $y_i$ is the true value for row $i$ and $ŷ_i$ the prediction, so each term is "
+         "one error, squared. Averaging over $n$ rows makes the result independent of "
+         "dataset size.",
+         "It is the loss $ℓ(y, y′) = (y − y′)²$ from lecture 1\u2019s ridge example averaged "
+         "over the data, so minimising MSE and minimising the empirical loss in step 4 of "
+         "the recipe are the same operation."]),
        ("Why squared", [
-         "Squaring makes errors positive and penalises large ones disproportionately: being "
-         "off by 10 counts a hundred times as much as being off by 1. It is also smooth and "
-         "differentiable, which is what makes least squares solvable in closed form.",
-         "The cost is sensitivity to outliers — one wild point can dominate the total."]),
+         "Squaring makes every error positive, so errors in opposite directions cannot "
+         "cancel. It also penalises large errors disproportionately: being out by 10 counts "
+         "a hundred times as much as being out by 1, so the fit works hardest on its worst "
+         "cases.",
+         "And it is smooth and differentiable everywhere, which is what makes least squares "
+         "solvable in closed form rather than by search. The cost of all this is sensitivity "
+         "to outliers — a single wild point can dominate the total."]),
        ("Units", [
-         "MSE is in the square of the target's units, which is why the square root (RMSE) "
-         "is often reported instead. The lecture's diabetes figure of 2856 is an MSE."])],
+         "MSE is in the square of the target\u2019s units, which is why its square root "
+         "(RMSE) is often reported instead. The lecture\u2019s diabetes figure of 2856 is an "
+         "MSE, so the typical error is nearer $√2856 ≈ 53$."])],
      advice="MSE compares models on one dataset; it cannot be compared across datasets with different scales.",
      related=["mae", "r-squared", "ridge"])
 
 _add(slug="mae", title="Mean absolute error", group="Measuring",
      short="The average size of the error, in the target's own units.",
      sections=[("Definition", [
-         Math("MAE = (1/n) Σᵢ |yᵢ − ŷᵢ|"),
-         "Directly interpretable: an MAE of 3 means the typical prediction is out by about "
-         "3 units of whatever y measures."]),
+         Math("MAE = (1⁄n) Σ_i |y_i − ŷ_i|"),
+         "The absolute value replaces the square, so an error of 10 counts ten times an "
+         "error of 1 rather than a hundred times. Every error contributes in proportion to "
+         "its size and nothing more.",
+         "Because there is no squaring, the result stays in the same units as $y$. An MAE "
+         "of 3 means the typical prediction is out by about 3 units of whatever $y$ "
+         "measures — whereas an MSE of 9 is in squared units and has to be square-rooted "
+         "before it means anything."]),
        ("Versus MSE", [
-         "MAE treats all errors proportionally, so it is far less sensitive to outliers. "
-         "The trade-off is that it is not differentiable at zero, which historically made it "
-         "harder to optimise.",
+         "MAE is far less sensitive to outliers, since one extreme error is not amplified. "
+         "The historical trade-off was that $|·|$ is not differentiable at zero, which made "
+         "it harder to optimise.",
          "There is also a statistical difference worth knowing: minimising squared error "
-         "predicts the conditional mean, while minimising absolute error predicts the "
-         "conditional median."])],
+         "predicts the conditional mean of $y$, while minimising absolute error predicts the "
+         "conditional median. On a skewed target those are different numbers, and which one "
+         "you want is a modelling decision."])],
      advice="Report MAE alongside R²; one gives the scale of the error, the other its significance.",
      related=["mse", "r-squared"])
 
@@ -494,14 +528,23 @@ _add(slug="standard-error", title="Standard error", group="Ideas worth knowing",
 _add(slug="one-se-rule", title="The one-standard-error rule", group="Ideas worth knowing",
      short="Among models that are statistically tied, choose the simplest.",
      sections=[("The rule", [
-         "Find the best mean cross-validated score and its standard error. Then, among all "
-         "candidates whose mean lies within one standard error of the best, take the "
-         "simplest — shallowest tree, largest k, strongest penalty.",
-         Math("choose the simplest f with  score(f)  ≥  max_g score(g) − SE"),]),
+         "Find the best mean cross-validated score and its standard error. Then keep every "
+         "candidate whose mean lies within one standard error of that best score, and among "
+         "the survivors take the simplest:",
+         Math("keep f if  score(f) ≥ max_g score(g) − SE"),
+         "The inequality defines a band rather than a point. Everything scoring above "
+         "$max_g score(g) − SE$ is inside it, and the rule treats every member of that band "
+         "as equally supported by the evidence — which is what a standard error means. Only "
+         "after the band is drawn does simplicity break the tie.",
+         "“Simplest” has to be defined per model family, and it is a human judgement rather "
+         "than something the data supplies: fewer leaves for a tree, larger $k$ for "
+         "k-nearest neighbours since more neighbours means more smoothing, smaller $C$ or "
+         "larger $α$ for the penalised models. In each case it is the direction of less "
+         "capacity."]),
        ("Why not just take the maximum", [
          "Because with many candidates the best mean is partly the luckiest mean. Sweeping "
-         "thirty values and taking the argmax selects on both genuine quality and on noise, "
-         "and the two cannot be separated afterwards.",
+         "thirty values and taking the argmax selects on genuine quality and on noise "
+         "together, and afterwards the two cannot be separated.",
          "If two models are statistically indistinguishable there is no evidence favouring "
          "the complicated one, and the simpler generalises at least as well while being "
          "easier to explain."]),
@@ -554,14 +597,20 @@ _add(slug="automl", title="Automated machine learning", group="Ideas worth knowi
 _add(slug="correlation", title="Correlation", group="Reading your data",
      short="How strongly two features move together.",
      sections=[("The measure", [
-         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)   ∈  [−1, 1]"),
-         "+1 is a perfect increasing linear relationship, −1 a perfect decreasing one, 0 no "
-         "linear relationship at all."]),
+         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)"),
+         "The covariance on top is large and positive when the two features are above their "
+         "means together, and negative when one is high while the other is low. By itself it "
+         "is in the product of the two features\u2019 units, so it cannot be compared across "
+         "different pairs.",
+         "Dividing by both standard deviations removes those units and pins the result "
+         "inside $[−1, 1]$: $+1$ is a perfect increasing linear relationship, $−1$ a perfect "
+         "decreasing one, and $0$ no linear relationship at all."]),
        ("Two warnings", [
          "It captures only linear dependence. Two features can be perfectly related — one "
-         "the square of the other, say — and show correlation near zero.",
+         "the square of the other — and still show $ρ$ near zero, so a low correlation is "
+         "not evidence of independence.",
          "And it says nothing about causation. Correlated features also make linear models "
-         "unstable, since weight can shift between them with little change in predictions, "
+         "unstable, because weight can shift between them with little change in predictions, "
          "so coefficients should not be read as importances."])],
      advice="Check the correlation matrix before trusting any per-feature importance.",
      related=["feature-ranking", "projection", "feature"])
@@ -569,16 +618,21 @@ _add(slug="correlation", title="Correlation", group="Reading your data",
 _add(slug="feature-ranking", title="Feature ranking", group="Reading your data",
      short="Ordering features by how well each separates the classes on its own.",
      sections=[("How it is computed here", [
-         "By a one-way ANOVA F-ratio: the variance of the class means divided by the "
-         "variance within the classes,",
-         Math("F = between-class variance ⁄ within-class variance"),
-         "A feature whose class means are far apart relative to the spread inside each class "
-         "scores highly."]),
+         "By a one-way ANOVA F-ratio. For a single feature, compare how far apart the class "
+         "means are against how spread out the values are inside each class:",
+         Math("F = (between-class variance) ⁄ (within-class variance)"),
+         "The numerator asks whether the classes sit in different places along this feature. "
+         "The denominator asks how noisy each class is around its own mean. A large ratio "
+         "means the groups are far apart relative to their internal scatter, which is "
+         "exactly the condition for the feature to be useful by itself.",
+         "Dividing by the within-class spread also removes the units, so a feature measured "
+         "in grams and one measured in millimetres can be ranked against each other."]),
        ("The catch", [
          "It is univariate — each feature is judged alone. Two features that separate the "
-         "classes only in combination both score badly, and two features carrying identical "
-         "information both score well despite one being redundant.",
-         "So read it as a guide to what to plot, not as a decision about what to keep."])],
+         "classes only in combination will both score badly, and two features carrying "
+         "identical information will both score well even though one is redundant.",
+         "So read the ranking as a guide to what is worth plotting, not as a decision about "
+         "what to keep."])],
      advice="Use it to choose which pair of features to scatter, then look at the plot before drawing conclusions.",
      related=["correlation", "projection", "feature"])
 
