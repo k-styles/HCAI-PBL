@@ -36,7 +36,7 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
                     </span>
                     <span class="p2-rule-then">→ {{ rule.prediction }}</span>
                     <span class="p2-rule-meta">{{ rule.samples }} penguins,
-                        {{ rule.purity|floatformat:2 }} pure</span>
+                        {{ rule.purity|floatformat:2 }} {% term "purity" "pure" %}</span>
                 </li>
             {% endfor %}
         </ol>
@@ -115,8 +115,14 @@ you have to {% term "complexity" "read" %}. The slider decides how much the seco
     <h2>Everything that was trained{% info "accuracy" %}</h2>
     <div class="p2-scroll">
         <table class="p2-table">
-            <thead><tr><th>Setting</th><th class="num">Ω</th><th class="num">test</th>
-                <th class="num">train</th><th>Reachable</th><th>Detail</th></tr></thead>
+            <thead><tr>
+                <th>Setting{% if kind == "logistic" %} {% info "hyperparameter-c" %}{% else %} {% info "leaves" %}{% endif %}</th>
+                <th class="num">Ω {% info "complexity" %}</th>
+                <th class="num">test {% info "test-set" %}</th>
+                <th class="num">train {% info "overfitting" %}</th>
+                <th>Reachable {% info "reachable" %}</th>
+                <th>Detail{% if kind == "tree" %} {% info "depth" %}{% endif %}</th>
+            </tr></thead>
             <tbody>
                 {% for candidate in family %}
                     <tr class="{% if candidate.omega == winner.omega %}picked{% endif %}">

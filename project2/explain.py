@@ -521,6 +521,124 @@ _add(slug="scaling", title="Standardisation", group="Models",
      related=["coefficient", "sparsity", "mad"])
 
 
+_add(slug="hyperparameter-c", title="C, the penalty strength", group="Complexity",
+     short="The knob that decides how sparse the logistic model is — and it works backwards.",
+     sections=[("What it is", [
+         "Every row of the logistic table is labelled with a value of $C$. It is the "
+         "setting that produced that model, and it is the linear model's equivalent of "
+         "capping a tree's leaves.",
+         "Fitting minimises the training loss plus a penalty on the coefficients, and $C$ "
+         "scales the two against each other:",
+         Math("argmin_w  C · Σ_i ℓ(w; x_i, y_i)  +  ‖w‖_1"),
+         "Note where $C$ sits — it multiplies the *loss*, not the penalty. So a large $C$ "
+         "says “fit the data hard, never mind the penalty”, and a small $C$ says the "
+         "opposite."]),
+       ("It runs the opposite way to λ", [
+         "This trips almost everyone. In lecture 1's formulation the hyperparameter "
+         "multiplies the penalty, so bigger means more regularisation. scikit-learn puts "
+         "its hyperparameter on the loss instead, so bigger means *less*. Roughly "
+         "$C ≈ 1 ⁄ λ$.",
+         "The table bears this out: $C = 0.002$ gives $Ω = 0$ — every coefficient crushed "
+         "to zero, so the model consults nothing and scores 0.44, which is just the "
+         "largest class. $C = 5$ gives $Ω = 7$ and uses every feature."]),
+       ("Why it is not the λ on the slider", [
+         "Two different quantities are in play and the brief warns about it explicitly: "
+         "“$λ$ is different from the parameter used to control the regularisation during "
+         "model fitting.”",
+         "$C$ acts *during* fitting and decides how sparse each individual model comes out. "
+         "The slider's $λ$ acts *afterwards*, choosing between already-fitted models by "
+         "trading their accuracy against their $Ω$. Sweeping $C$ builds the candidates; "
+         "$λ$ picks one."])],
+     advice="Read C as “how much the fit is allowed to care about the data”. Small C, sparse model.",
+     related=["sparsity", "lambda", "logistic", "complexity"])
+
+_add(slug="purity", title="Leaf purity", group="Models",
+     short="How single-minded a leaf is — the share of its penguins belonging to its majority species.",
+     sections=[("What the number means", [
+         "A leaf reading “100 penguins, 0.98 pure” holds 100 birds, and 98% of them are the "
+         "species the leaf predicts. The other 2% are misclassified by that rule and there "
+         "is nothing the tree can do about them without splitting further."]),
+       ("How it drives the tree", [
+         "Purity is what the tree maximises. At every node it searches over features and "
+         "thresholds for the split that leaves the two children as pure as possible, "
+         "measured by the drop in Gini impurity:",
+         Math("G = 1 − Σ_k p_k²"),
+         Aside("$p_k$ is the share of the node's samples in class $k$, so $G = 0$ for a pure node."),
+         "For three equally mixed species $G = 1 − 3·(1⁄3)² = 2⁄3$, the worst it can be "
+         "here. A pure leaf scores 0. The split chosen is whichever most reduces the "
+         "weighted $G$ across the two children."]),
+       ("What to read into it", [
+         "A leaf at 0.93 is doing honest work on a genuinely mixed region. A leaf at 1.00 "
+         "holding four penguins is usually memorisation — it is pure because it is tiny, "
+         "not because it found a real rule.",
+         "So read purity next to the count. Both are shown for exactly this reason."])],
+     advice="Small and perfectly pure is a warning sign; large and slightly impure is usually the better rule.",
+     related=["tree", "leaves", "overfitting"])
+
+_add(slug="depth", title="Depth", group="Complexity",
+     short="The longest chain of questions from the root to a leaf.",
+     sections=[("Depth against leaves", [
+         "A tree of depth 2 asks at most two questions before answering. The table shows "
+         "both because they measure different things: depth bounds how long the reasoning "
+         "chain is, leaves count how many distinct answers there are.",
+         "They are related but loosely. A binary tree of depth $d$ has at most $2^d$ leaves, "
+         "so depth 5 permits anything from 6 leaves to 32.",
+         Math("leaves ≤ 2^depth"),]),
+       ("Why Ω counts leaves and not depth", [
+         "The brief fixes $Ω$ as the number of leaves, and it is the better choice. Depth "
+         "constrains the tree only loosely, and two trees of the same depth can differ by a "
+         "factor of five in how much there is to read.",
+         "Depth is still worth showing. A tree with 12 leaves at depth 5 is a different "
+         "object from one with 12 leaves at depth 3 — the first has long, narrow chains of "
+         "conditions, which are harder to follow even though the leaf count is identical."])],
+     advice="If depth grows while accuracy does not, the tree is chaining conditions to isolate individual birds.",
+     related=["leaves", "tree", "complexity"])
+
+_add(slug="gaussian", title="Gaussian noise", group="Counterfactuals",
+     short="Small random nudges drawn from a bell curve, used to explore near an example.",
+     sections=[("What it does", [
+         "To find counterfactuals the search proposes points near the penguin you picked. "
+         "For a numeric feature the nudge is drawn from a normal distribution centred on "
+         "zero:",
+         Math("x′_j = x_j + ε,   ε ∼ 𝒩(0, σ_j²)"),
+         "So most proposals sit close to the original, a few land further out, and the "
+         "distribution is symmetric — no direction is favoured."]),
+       ("Why the width is per-feature", [
+         "$σ_j$ is scaled by that feature's own MAD rather than being one number for every "
+         "column. A fixed $σ$ of, say, 5 would be a trivial nudge to body mass in grams and "
+         "an enormous one to bill depth in millimetres.",
+         "Tying the noise to each feature's own spread means a proposal is equally "
+         "adventurous in every direction, which is also the scale the distance is measured "
+         "in — so the search and the ranking agree about what “near” means."]),
+       ("When it is widened", [
+         "If no counterfactual turns up, the search increases $σ$ and tries again. A target "
+         "class needing several rounds of widening is telling you something real: that "
+         "region of feature space is far away from where this penguin sits."])],
+     advice="Nothing is nudged for categorical features — there is no bell curve over islands.",
+     related=["noising", "mad", "counterfactual"])
+
+_add(slug="empirical-distribution", title="The empirical distribution", group="Counterfactuals",
+     short="The frequencies a feature actually has in the data, used instead of guessing.",
+     sections=[("What it means", [
+         "The distribution you get by treating the dataset itself as the whole population. "
+         "If 44% of the penguins are on Biscoe, then Biscoe has probability 0.44:",
+         Math("P̂(x_j = v) = count(x_j = v) ⁄ n"),
+         "No assumption about a shape, no fitted parameters — just counting."]),
+       ("Why it is used for resampling", [
+         "When a categorical feature is perturbed, the replacement value is drawn from this "
+         "distribution rather than uniformly over the levels.",
+         "The difference matters. Uniform sampling would propose rare combinations as often "
+         "as common ones, filling the candidate list with penguins that essentially do not "
+         "occur. Drawing from the empirical distribution keeps the proposals looking like "
+         "the data — which is the same instinct that makes ALE preferable to a PDP."]),
+       ("Its limit", [
+         "It can only ever propose values that were observed. A level absent from the "
+         "training data has probability zero and will never be suggested, even if it exists "
+         "in the world."])],
+     advice="It is why the counterfactuals you see look like plausible penguins rather than random ones.",
+     related=["noising", "counterfactual", "penguins"])
+
+
 def groups():
     ordered = {}
     for topic in TOPICS.values():
