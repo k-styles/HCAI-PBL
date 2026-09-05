@@ -20,11 +20,19 @@ own says nothing useful.
 | Choice of models, hyperparameters and scores | Decided against the lecture material, not delegated. |
 | Verification | Model-run: a script exercising every view and error path with Django's test client, plus a browser pass. |
 
-## The parts that were not delegated
+## The parts the briefs reserve
 
 Three components had more than one defensible answer, and those are the ones the
-brief is actually asking about. Each was settled as a rule first and the model
-was used to write the rule down, not to choose it.
+brief is actually asking about.
+
+To be accurate about how they were produced: the rules below were proposed by
+the model, under a standing instruction that ruled out the library defaults —
+*do not blindly use canned algorithms; for any algorithmic component where there
+are multiple reasonable choices, design and write the algorithm yourself based
+on the project requirements.* That instruction is the reason this project has a
+hand-written one-standard-error rule rather than a call to `GridSearchCV`, and
+it is the author's contribution to these three. The wording of each rule, and
+the argument for it, was then reviewed and kept.
 
 **Dropping an id column.** Matching on the column name is the obvious approach
 and it is wrong — `patient_id` can be a real feature. The rule used here is
@@ -54,12 +62,13 @@ For the Django and presentation layers, clearly yes. That work is well-specified
 and has a known shape; time spent typing it out is time not spent on the part
 being graded.
 
-For the three components above, the honest answer is that the model saved typing
-and nothing else. The decisions had to be made against the project brief and
-lecture 1 either way, and a model asked to "pick a hyperparameter" reaches for
-`GridSearchCV`, which is exactly the answer the brief is trying to get past.
-Using it as a drafting tool worked; using it as the source of the design would
-have produced a worse project.
+For the three components above the answer is less comfortable. A model asked
+plainly to "pick a hyperparameter" reaches for `GridSearchCV`, which is exactly
+the answer the brief is trying to get past. What produced something better was
+the constraint, not the model: forbidding the canned answer forced a rule that
+had to be argued for. The lesson worth recording is that the quality of these
+came from the instruction given, and a project run without that constraint would
+have been visibly worse.
 
 ## Project 2 specifically
 
@@ -107,26 +116,30 @@ shell it will find some.
 
 ## Project 4 specifically
 
-Task 1 is a design decision and was made here, not delegated. The feature set is
-governed by the elicitation budget rather than by descriptive power: the rule
-that a genre earns a dimension only when 2p(1-p) clears one informative pair in
-ten, and the exclusion of director and cast as unidentifiable rather than weak,
-are the arguments the grade rests on and they were reasoned out before any code
-was written. The threshold is computed from `PAIR_INFORMATIVENESS` in
-`project4/data.py` rather than hardcoded, so the prose and the code cannot drift.
+Tasks 1 and 2 are where this project's marks are, and both were produced under
+the same constraint as projects 1 to 3 rather than by asking for an answer.
 
-Task 2 likewise. The Plackett-Luce derivation, the three justifications for it,
-and the specific rejection of the naive "split a ranking into all 45 pairs"
-alternative are the substance of the task. An LLM will produce the Plackett-Luce
-formula on request; what it will not produce unprompted is the observation that
-its pairwise marginals coincide with Bradley-Terry, which is the only reason
-scoring both study arms on a common held-out set is legitimate rather than a
-category error. That connection was found here and then verified numerically.
+Task 1's feature set is governed by the elicitation budget rather than by
+descriptive power: a genre earns a dimension only when 2p(1-p) clears one
+informative pair in ten, and director and cast are excluded as unidentifiable
+rather than weak. The threshold is computed from `PAIR_INFORMATIVENESS` in
+`project4/data.py` rather than hardcoded, so the prose and the code cannot
+drift apart.
 
-Drafting help was used for the plain-language explanation pages, the CSS, and the
-prose of the report, on the same terms as projects 1 to 3: the arguments are
-mine, the phrasing was iterated with assistance, and every quantitative claim in
-the report was produced by code in this repository and checked.
+Task 2 is the Plackett-Luce derivation and the argument for it. Worth being
+precise about what is easy here and what is not: an LLM will produce the
+Plackett-Luce formula on request, and reaching for it is no achievement. What
+carries the task is the observation that its pairwise marginals coincide with
+Bradley-Terry — the only reason scoring both study arms against a common
+held-out set is legitimate rather than a category error — and the specific
+rejection of the naive "split a ranking into all 45 pairs" alternative on the
+grounds that it double-counts dependent comparisons and does not sum to one over
+the n! orderings. Both are verified numerically in `check_marginals` rather than
+asserted.
+
+Drafting help was used for the plain-language explanation pages, the CSS and the
+prose of the report. Every quantitative claim in the report was produced by code
+in this repository and checked against it.
 
 ## What Project 4's verification actually changed
 
@@ -154,6 +167,54 @@ that this is what pre-registration exists to make visible.
 The honest reading is that the naive arithmetic was persuasive and wrong, and it
 would have gone into the report unchallenged if the power simulation had been
 skipped as a formality.
+
+## Why the framework layer was delegated
+
+This is a deliberate allocation of effort, not an accident, and the reasoning is
+worth stating.
+
+**No brief asks for framework skill.** The four briefs are about machine
+learning methodology and human-centric design. Django appears only as the
+delivery vehicle — project 1's own section on "useful tools" points at the demo
+app for file upload and at ChartJS as an alternative for plotting. It is
+scaffolding for the thing being assessed, not the thing being assessed.
+
+**The briefs name what they reserve, explicitly.** Where own work is required
+they say so: *"the code for the computation of the PDP and ALE values should be
+written by you, i.e., do not use a library for them"*; *"choose a suitable
+complexity measure Ω"*; *"design and implement at least one simulated expert"*;
+*"justify your choice"*. Nothing anywhere says anything comparable about URL
+routing or template inheritance. Those requirements are tracked in
+`home/own_work.py`, and the audit at `/home/own-work/` re-reads each named file
+and checks the imports, so the claim that no library did the reserved work is
+verified rather than asserted.
+
+**The delegated work has one correct shape.** Registering an app, wiring
+`INSTALLED_APPS`, an URL include, a form, session state, saving a matplotlib
+figure to `MEDIA_ROOT` and serving it — every Django project does these the same
+way. There is no decision in them to get right or wrong, only typing.
+
+**The line is between plumbing and interface decisions, and only one side was
+delegated.** Project 1's Task 4 asks *"what the user should be in control of,
+and what should be done automatically"*; project 1's Task 3 says *"the more you
+will do, the higher your grade"* about the interface. Those are graded, and they
+are design questions rather than framework questions: whether the app shows what
+it inferred, whether the user can override it, whether there is an automatic
+path to compare against. Those decisions are argued for in the implementation
+report. How a POST reaches a view is not.
+
+**One Django item is not delegable and was not treated as such.** Project 1's
+Task 1 — *"get familiar with this app logic… do this modification from the
+python, and not in the HTML!"* — is a comprehension check. It is one line of
+code whose entire point is whether the view-context-template separation is
+understood, so it carries an own-work marker like the algorithmic requirements
+do.
+
+**The trade in one sentence.** Hours spent typing framework code are hours not
+spent on the four things a marker can actually probe: why Ω counts non-zero
+coefficients rather than ‖w‖², why a decision tree's ALE needs finite
+differences, why a simulated expert's competence must depend on x and not y, and
+why Plackett-Luce rather than a product over all 45 implied pairs.
 
 ## What was checked by hand
 
