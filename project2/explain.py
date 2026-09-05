@@ -474,7 +474,7 @@ _add(slug="correlation", title="Correlated features", group="Feature effects",
          Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)"),
          "The covariance in the numerator is large when the two are above their means "
          "together and negative when one is high while the other is low. On its own it is "
-         "in the product of the two features\u2019 units, so it cannot be compared across "
+         "in the product of the two features’ units, so it cannot be compared across "
          "pairs.",
          "Dividing by both standard deviations strips those units away and confines the "
          "result to $[−1, 1]$: $+1$ is a perfect increasing linear relationship, $−1$ a "

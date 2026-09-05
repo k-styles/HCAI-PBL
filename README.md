@@ -89,4 +89,4 @@ project1/
 └── static/project1/style.css
 ```
 
-Sample data used during development is in `../data/` (`iris.csv`, `diabetes.csv`).
+Sample data used during development is in `../data/` (`iris.csv`).

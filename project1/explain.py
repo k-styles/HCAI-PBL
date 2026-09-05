@@ -234,10 +234,13 @@ _add(slug="ridge", title="Ridge regression", group="Models",
          "stabilises the fit.",
          "Unlike an ℓ₁ penalty, ‖w‖² shrinks coefficients smoothly without ever setting any "
          "exactly to zero."]),
-       ("The lecture's result", [
-         "On the diabetes dataset the lecture sweeps λ, selects 0.1 and reports a test MSE "
-         "of about 2856 — then points out that the human was present at every step of that "
-         "apparently automatic procedure."])],
+       ("Why it is the lecture's example", [
+         "Ridge is the smallest model that still contains every part of the recipe: a "
+         "hypothesis class, a loss, a penalty, and a hyperparameter that must be chosen "
+         "from outside the minimisation.",
+         "That last piece is what the lecture builds on. Sweeping $λ$ and keeping whichever "
+         "value scores best looks like a fully automatic procedure, and the lecture uses it "
+         "to show that a human was in fact present at every step of it."])],
      advice="λ is on a logarithmic scale; sweep it by factors of ten rather than in equal steps.",
      related=["hyperparameter-alpha", "mse", "model"])
 
@@ -314,8 +317,9 @@ _add(slug="hyperparameter-alpha", title="α, the ridge penalty", group="Settings
          "In the limit of very large α every coefficient is zero and the model predicts the "
          "mean of y for every input."]),
        ("Choosing it", [
-         "There is no natural scale, so sweep logarithmically. The lecture's diabetes "
-         "example lands on 0.1."])],
+         "There is no natural scale for $α$, so sweep it logarithmically — 0.001, 0.01, "
+         "0.1, 1, 10 — rather than in equal steps. A linear grid spends most of its points "
+         "in a region where the penalty barely changes the fit at all."])],
      advice="Ridge is not scale-invariant, so standardise before sweeping α or the penalty falls unevenly across features.",
      related=["ridge", "scaling", "cross-validation"])
 
@@ -436,7 +440,7 @@ _add(slug="mse", title="Mean squared error", group="Measuring",
          "Here $y_i$ is the true value for row $i$ and $ŷ_i$ the prediction, so each term is "
          "one error, squared. Averaging over $n$ rows makes the result independent of "
          "dataset size.",
-         "It is the loss $ℓ(y, y′) = (y − y′)²$ from lecture 1\u2019s ridge example averaged "
+         "It is the loss $ℓ(y, y′) = (y − y′)²$ from lecture 1’s ridge example averaged "
          "over the data, so minimising MSE and minimising the empirical loss in step 4 of "
          "the recipe are the same operation."]),
        ("Why squared", [
@@ -448,9 +452,11 @@ _add(slug="mse", title="Mean squared error", group="Measuring",
          "solvable in closed form rather than by search. The cost of all this is sensitivity "
          "to outliers — a single wild point can dominate the total."]),
        ("Units", [
-         "MSE is in the square of the target\u2019s units, which is why its square root "
-         "(RMSE) is often reported instead. The lecture\u2019s diabetes figure of 2856 is an "
-         "MSE, so the typical error is nearer $√2856 ≈ 53$."])],
+         "MSE is in the square of the target’s units, which is why its square root, the "
+         "RMSE, is often reported instead.",
+         "That difference matters when reading a number. An MSE of 2500 sounds enormous "
+         "until you take the root: it means a typical error of about 50, and whether 50 is "
+         "large depends entirely on what $y$ measures."])],
      advice="MSE compares models on one dataset; it cannot be compared across datasets with different scales.",
      related=["mae", "r-squared", "ridge"])
 
@@ -601,7 +607,7 @@ _add(slug="correlation", title="Correlation", group="Reading your data",
          Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)"),
          "The covariance on top is large and positive when the two features are above their "
          "means together, and negative when one is high while the other is low. By itself it "
-         "is in the product of the two features\u2019 units, so it cannot be compared across "
+         "is in the product of the two features’ units, so it cannot be compared across "
          "different pairs.",
          "Dividing by both standard deviations removes those units and pins the result "
          "inside $[−1, 1]$: $+1$ is a perfect increasing linear relationship, $−1$ a perfect "

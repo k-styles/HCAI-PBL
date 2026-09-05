@@ -134,7 +134,7 @@ _add(
         "alone, and it has to be: at the moment the deferral decision is taken, the article "
         "is all anyone has. The true label $y$ is precisely what is unknown.",
         "It is fitted as an ordinary binary classification problem. The inputs are the "
-        "article\u2019s features; the target is a 0 or 1 recording whether the expert was "
+        "article’s features; the target is a 0 or 1 recording whether the expert was "
         "right on it. Any classifier will do, and its predicted probability is $q(x)$."]),
       ("Where the labels come from", [
         "This is where the missing “should we defer” label gets manufactured. You cannot "
@@ -220,11 +220,11 @@ _add(
         "Both share a numerator — the cases handed over that genuinely warranted it — and "
         "differ only in what they divide by.",
         "Precision divides by everything deferred, so it answers: of the interruptions you "
-        "caused, what share were worth causing? That is the expert\u2019s perspective, and "
+        "caused, what share were worth causing? That is the expert’s perspective, and "
         "it measures wasted attention.",
         "Recall divides by everything that needed deferring, so it answers: of the cases "
         "where handing over would have helped, how many did you catch? That is the "
-        "system\u2019s perspective, and it measures missed benefit."]),
+        "system’s perspective, and it measures missed benefit."]),
       ("The trade-off", [
         "Lowering the threshold raises recall and lowers precision — you catch more of the "
         "useful cases by handing over more of everything. A policy that defers the entire "

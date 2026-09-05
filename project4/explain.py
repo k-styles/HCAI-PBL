@@ -259,12 +259,12 @@ _add(slug="map", title="How w is fitted", group="Fitting",
          "By gradient ascent. Differentiating the log of the Plackett–Luce product gives a "
          "form worth reading:",
          Math("∇_w = Σ_k ( x_{i_k} − Σ_{l ≥ k} p_l x_{i_l} )"),
-         "At each stage the gradient is the chosen film\u2019s features minus a "
+         "At each stage the gradient is the chosen film’s features minus a "
          "probability-weighted average of the features still available. So it is a "
          "comparison: what you picked, against what the model currently expected you to "
          "pick.",
          "If the model already gives almost all the probability to the film you chose, that "
-         "weighted average is nearly the chosen film\u2019s own features, the difference is "
+         "weighted average is nearly the chosen film’s own features, the difference is "
          "close to zero, and your answer moves $w$ hardly at all. The gradient is largest "
          "when you choose something the model thought unlikely — the formal version of the "
          "obvious idea that surprising answers are the informative ones.",

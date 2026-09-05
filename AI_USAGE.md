@@ -158,9 +158,6 @@ skipped as a formality.
 ## What was checked by hand
 
 - The stratified folds were checked to be disjoint, complete, and class-balanced.
-- Ridge on the diabetes dataset reproduces lecture 1's reported MSE of roughly
-  2856 to within the noise of the split, which is the closest thing to a
-  reference result available.
 - Project 2's frontier was checked against brute force: sweeping λ over 35,000
   values and taking the arg max reproduces exactly the models the hull predicts.
 - Project 2's two ALE routes were checked against each other; the closed-form
