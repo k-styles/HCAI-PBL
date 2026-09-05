@@ -337,7 +337,7 @@ _add(slug="fisher", title="How much a task is worth", group="Fitting",
      short="A measure of how sharply one answer narrows down w — and a warning about reading it naively.",
      sections=[("The quantity", [
          "Fisher information measures how much an observation constrains a parameter. For a "
-         "softmax choice over a set S with probabilities p_s,",
+         "softmax choice over a set $S$ with choice probabilities $p_s$,",
          Math("I = Σ_{s∈S} p_s x_s x_s^⊤  −  x̄ x̄^⊤"),
          Aside("with $x̄ = Σ_s p_s x_s$, the average feature vector under the choice distribution."),
          "It is the covariance of the features under the choice distribution. A ranking "
