@@ -20,6 +20,27 @@ class Topic:
     group: str = "General"
 
 
+class Math(str):
+    """A display formula inside a section's paragraph list.
+
+    Subclassing str keeps every existing paragraph a plain string, so nothing
+    else has to change. The template asks for `.is_math`; a plain str has no
+    such attribute and Django resolves that to the empty string, which is
+    falsy -- so the two render differently without any type checking in the
+    template.
+
+    Formulas are written in unicode rather than LaTeX. These pages must render
+    with no network and no JavaScript, which rules out MathJax and KaTeX, and
+    the expressions here are small enough that unicode is honest about them.
+    """
+    is_math = True
+
+
+class Aside(str):
+    """A smaller note under a paragraph -- notation reminders, caveats."""
+    is_aside = True
+
+
 TOPICS = {}
 
 
@@ -37,382 +58,450 @@ def groups():
 # --- the data --------------------------------------------------------------
 
 _add(slug="movies", title="The film pool", group="The data",
-     short="2,734 well-known films, described only by their metadata.",
+     short="Around 2,700 well-known films, described only by metadata.",
      sections=[("What is in it", [
-         "The IMDB 5000 dataset: about five thousand films with their genres, year, "
-         "running time, certificate, average score and how many people voted on it. "
-         "There are no ratings by individual people in it at all.",
-         "That absence is the reason this project exists. A normal recommender learns "
-         "from millions of past ratings. Here there is nothing to learn from until "
-         "somebody sits down and tells us what they like."]),
+         "The IMDB 5000 dataset: roughly five thousand films with genres, release year, "
+         "running time, certificate, average score and vote count. It contains no ratings "
+         "by individual users at all.",
+         "That absence is the reason the project exists. A conventional recommender learns "
+         "from a matrix of user-by-item ratings; here there is no such matrix, and nothing "
+         "to learn from until somebody sits down and tells us what they like."]),
        ("Why it was trimmed", [
-         "Films with fewer than 25,000 votes were dropped. Someone comparing two films "
-         "they have never heard of is not expressing a preference, they are guessing "
-         "from the card, and that guessing is noise we can never model away.",
-         "2,734 films survive, from 1927 to 2016."])],
-     advice="Every film you are shown comes from this pool, drawn at random.",
-     related=["cold-start", "feature-vector"])
+         "Films with fewer than 25,000 votes are dropped. Somebody comparing two films "
+         "they have never heard of is not expressing a preference — they are reading the "
+         "card and guessing, and that guessing enters the model as response noise "
+         "attributed to their taste.",
+         "That is a validity decision rather than data cleaning. About 2,700 films survive, "
+         "spanning 1927 to 2016."])],
+     advice="Every film shown to you is drawn uniformly at random from this pool.",
+     related=["cold-start", "feature-vector", "validity"])
 
 _add(slug="cold-start", title="The cold start", group="The data",
-     short="A brand new user with no history at all — and the whole problem here.",
-     sections=[("The situation", [
-         "You have just signed up. The system knows nothing about you. It cannot say "
-         "\"people like you enjoyed this\", because it has no idea who is like you.",
-         "The only way out is to ask. But you will not sit through two hundred questions, "
-         "so the system gets maybe twenty. Which twenty, and asked how?"]),
-       ("What this project measures", [
-         "Two ways of asking. Pick one of two films, over and over; or put ten films in "
-         "order. Both cost you time. The question is which one tells the system more "
-         "per minute you spend."])],
-     advice="This is the question the whole user study is built to answer.",
+     short="A new user with no history — the situation this whole project addresses.",
+     sections=[("The problem", [
+         "You have just signed up. The system knows nothing about you, so it cannot say "
+         "“people like you enjoyed this” — it has no idea who is like you.",
+         "Collaborative filtering, which learns from the pattern of other users' ratings, "
+         "has nothing to work with. The only remaining option is to ask directly."]),
+       ("The constraint", [
+         "You will not answer two hundred questions. Realistically the system gets twenty "
+         "or so, which is why the whole design is shaped by the budget rather than by what "
+         "would best describe a film."])],
+     advice="This is the question the user study is built to answer: which way of asking learns more per minute.",
      related=["elicitation", "movies", "designs"])
 
 # --- the model -------------------------------------------------------------
 
 _add(slug="feature-vector", title="Feature vector, x", group="The model",
-     short="A film boiled down to 20 numbers.",
-     sections=[("What it is", [
-         "Every film becomes a list of numbers: is it a comedy (1 or 0), is it a thriller, "
-         "how recent, how long, how well reviewed, how widely seen, is it for adults, is "
-         "it black and white. Twenty numbers in all.",
-         "The model only ever sees these numbers. If something about a film is not in "
-         "them, the model is blind to it."]),
-       ("Why only twenty", [
-         "Because every number needs evidence. Twenty numbers can be pinned down by "
-         "twenty-odd answers. Two thousand — one per director, say — could not be pinned "
-         "down by any number of answers you would tolerate giving.",
-         "There is a second rule: if you cannot see it on the card, it is not in x. You "
-         "cannot have chosen a film for its budget if we never showed you the budget."])],
-     advice="The features page lists all twenty and what was deliberately left out.",
+     short="A film reduced to 20 numbers.",
+     sections=[("What it holds", [
+         "Fourteen genre indicators, each 0 or 1; four standardised continuous features — "
+         "how recent, how long, how well reviewed, how widely seen; and two further "
+         "indicators for adult certification and black-and-white. So x ∈ ℝ²⁰.",
+         "The model sees nothing else. Anything not in x is invisible to it."]),
+       ("Why so few", [
+         "Every dimension needs evidence. Twenty weights can be pinned down by twenty-odd "
+         "answers; two thousand — one per director — could not be pinned down by any "
+         "number of answers a person would tolerate giving.",
+         "A second rule: if it is not on the card, it is not in x. You cannot have chosen "
+         "a film for its budget if the budget was never shown to you."])],
+     advice="The features page lists all twenty dimensions and everything deliberately left out.",
      related=["preference-vector", "utility", "identifiability", "standardise"])
 
 _add(slug="preference-vector", title="Preference vector, w", group="The model",
-     short="Your taste, as one number per feature — the thing we are trying to find.",
+     short="One number per feature describing your taste — the quantity being estimated.",
      sections=[("What it is", [
-         "For each of the twenty features, one number saying how much that feature "
-         "appeals to you. Positive means you like it, negative means you avoid it, "
-         "large means you care a lot.",
-         "\"Loves horror, hates long films, mildly prefers older ones\" is a w."]),
-       ("Why it is hard", [
-         "Nobody can tell you their own w. Ask someone their weight on \"how widely seen\" "
-         "and you will get a shrug. But ask them to choose between two films twenty times "
-         "and the number falls out.",
-         "It is also never observed, which is exactly why the study cannot measure "
-         "\"how close did we get\" and has to measure something else instead."])],
-     advice="At the end of the study you are shown the w that was fitted to your answers.",
+         "For each of the twenty features, a weight saying how much that feature appeals to "
+         "you. Positive means you like it, negative means you avoid it, and magnitude says "
+         "how strongly. w ∈ ℝ²⁰, and it differs from person to person.",
+         "“Loves horror, dislikes long films, mildly prefers older ones” is a description "
+         "of a w."]),
+       ("Why it must be inferred rather than asked", [
+         "Nobody can state their own w. Ask someone their weight on “how widely seen a film "
+         "is” and you will get a shrug. But ask them to choose between two films twenty "
+         "times and the number falls out.",
+         "It is also never observed for any real person, which is why the study cannot "
+         "measure how close an estimate is and has to measure prediction instead."])],
+     advice="Your fitted w is shown at the end of the study.",
      related=["utility", "feature-vector", "holdout", "map"])
 
 _add(slug="utility", title="Utility, U(x) = wᵀx", group="The model",
-     short="One score per film, for one person: multiply and add.",
-     sections=[("How it works", [
-         "Take each of the film's twenty numbers, multiply by your weight for that "
-         "feature, add it all up. One score. Higher means you should like it more.",
-         "That is the entire preference model. Everything else is about working out the "
-         "weights."]),
+     short="A single score per film for a given person: multiply and add.",
+     sections=[("The model", [
+         Math("U(x) = wᵀx = Σⱼ wⱼ xⱼ"),
+         "Take each of the film's twenty numbers, multiply by your weight for that feature, "
+         "sum. Higher means you should prefer it. That is the entire preference model — "
+         "everything else is about recovering w."]),
        ("What it assumes", [
-         "That features add up independently — that liking horror and liking short films "
-         "means liking short horror films exactly that much and no more. Real taste has "
-         "interactions this cannot express. It is a deliberate simplification, and it is "
-         "what makes twenty answers enough."])],
-     advice="Two films with the same score should feel like a coin toss to you.",
+         "That features contribute additively and independently. Liking horror and liking "
+         "short films means liking short horror films by exactly the sum of the two, no "
+         "more. Real taste has interactions this cannot express.",
+         "It is a deliberate simplification, and it is what makes twenty answers enough. "
+         "Lecture 9's remark applies: all models are wrong, but some are useful."]),
+       ("An identifiability note", [
+         "Only differences in utility matter to any of the models here, so adding a "
+         "constant to every film's utility changes nothing observable."])],
+     advice="Two films with equal utility should feel like a coin toss to you — that is what the model predicts.",
      related=["preference-vector", "bradley-terry", "feature-vector"])
 
 _add(slug="bradley-terry", title="The Bradley–Terry model", group="The model",
-     short="Turns two utility scores into the chance of picking one over the other.",
-     sections=[("The idea", [
-         "If two films score the same, you pick either with probability one half. As one "
-         "pulls ahead, the chance of picking it rises — smoothly, never quite reaching "
-         "certainty.",
-         "Concretely the probability is one divided by one plus e to the minus the score "
-         "difference. A one-point gap gives about 73 to 27; a three-point gap about 95 to 5."]),
-       ("Why not just say the higher score always wins", [
-         "Because people are not that consistent, and a model that says \"always\" cannot "
-         "learn from being wrong. Allowing for the occasional surprising answer is what "
-         "lets a handful of responses say something useful."])],
-     advice="This is the model the brief gives us. Task 2 is about stretching it.",
+     short="Converts two utilities into the probability of choosing one over the other.",
+     sections=[("The model", [
+         Math("P(i ≻ j) = e^{U_i} ⁄ ( e^{U_i} + e^{U_j} ) = σ( wᵀ(xᵢ − xⱼ) )"),
+         Aside("σ(z) = 1/(1 + e⁻ᶻ) is the logistic sigmoid."),
+         "Equal utilities give one half. As one film pulls ahead the probability rises "
+         "smoothly towards, but never reaching, certainty. A gap of one utility point is "
+         "about 73/27; a gap of three is about 95/5."]),
+       ("Where it comes from in the course", [
+         "Lecture 9 gives the general Luce model for choice among finitely many options,",
+         Math("p(a | s, θ) = U(a | s, θ) ⁄ Σ_{a′} U(a′ | s, θ)"),
+         "and notes that with two actions and utility exp(αθᵀq_a) this is the logit model. "
+         "Bradley–Terry is exactly that two-option case."]),
+       ("Why not deterministic", [
+         "Because people are not consistent, and a model asserting the higher utility always "
+         "wins cannot learn from being contradicted. Allowing surprising answers is what "
+         "lets a handful of responses say anything useful."])],
+     advice="This is the model the brief supplies. Task 2 is about extending it past two options.",
      related=["plackett-luce", "utility", "iia"])
 
 _add(slug="plackett-luce", title="The Plackett–Luce model", group="The model",
-     short="Bradley–Terry for a whole ranking instead of a single pair.",
-     sections=[("How the extension works", [
-         "Read your ranking of ten as a sequence of choices. First you picked a favourite "
-         "out of ten. Then a favourite out of the nine left. Then out of eight. Nine "
-         "choices in all.",
-         "Each of those is Bradley–Terry with more than two options, so multiply the nine "
-         "probabilities together. That product is Plackett–Luce."]),
-       ("Why this one and not another", [
-         "With only two films the product has one factor and it is Bradley–Terry exactly, "
-         "so nothing was replaced.",
-         "The chance that one film ends up above another in the ranking works out to be "
-         "the plain Bradley–Terry probability, whatever the other eight films are. So the "
-         "pairwise interface and the ranking interface are estimating the same thing — "
-         "without which comparing them would be meaningless.",
-         "The tempting shortcut is to chop a ranking of ten into all forty-five pairs and "
-         "treat them as forty-five separate answers. That counts the same evidence over "
-         "and over: if you put A above B and B above C, then A above C came free. It also "
-         "does not add up to one across the possible orderings, so it is not a probability "
-         "at all."])],
-     advice="This derivation is Task 2, and it is set out in full in the PDF report.",
+     short="Bradley–Terry extended from a single pair to a full ranking.",
+     sections=[("The construction", [
+         "Read a ranking as a sequence of choices: a favourite out of ten, then out of the "
+         "nine remaining, then eight. Each stage is a Luce choice over what is left, so "
+         "multiply the stages:",
+         Math("P(i₁ ≻ i₂ ≻ ⋯ ≻ iₙ) = ∏ₖ  e^{U_{iₖ}} ⁄ Σ_{l ≥ k} e^{U_{i_l}}"),
+         "The final factor is 1 and is dropped."]),
+       ("Why this is the right extension", [
+         "At n = 2 the product has a single factor and is exactly Bradley–Terry, so nothing "
+         "was replaced.",
+         "Its pairwise marginals are the Bradley–Terry probabilities: the chance that i "
+         "appears before j in a sampled ranking is e^{U_i}/(e^{U_i}+e^{U_j}), whatever the "
+         "other films in the set. This is what makes the study legitimate — both interfaces "
+         "estimate the same w, so scoring them on the same held-out pairs is a fair test "
+         "rather than a category error."]),
+       ("The alternative that fails", [
+         "A ranking of ten implies C(10,2) = 45 pairwise preferences, and it is tempting to "
+         "treat them as 45 independent observations and multiply. This is wrong twice: the "
+         "comparisons are dependent, since i₁ ≻ i₃ is partly entailed by i₁ ≻ i₂ and "
+         "i₂ ≻ i₃, so the same evidence is counted repeatedly; and the product does not sum "
+         "to one over the n! orderings, so it is not a likelihood at all.",
+         "Plackett–Luce sums to one by construction, being a product of normalised choices."])],
+     advice="The full derivation and its justification are in the PDF report.",
      related=["bradley-terry", "ranking", "iia", "fisher"])
 
 _add(slug="iia", title="Luce's choice axiom", group="The model",
-     short="The assumption that adding options doesn't change how you rank the others.",
-     sections=[("What it says", [
-         "If you prefer A to B, then throwing C into the mix should not flip that. The "
-         "odds between A and B are the odds between A and B, whoever else is present."]),
-       ("Where it breaks", [
-         "Put two near-identical sequels in a set of ten and people often push both down "
-         "— the pair split their appeal. Bradley–Terry and Plackett–Luce cannot represent "
-         "that, because it is exactly what the axiom forbids.",
-         "This is a genuine limitation, and the study design treats it as one: the "
-         "ranking interface exposes ten films at a time and so is more vulnerable to it "
-         "than the pairwise one. The report lists it as a threat to validity."])],
+     short="The assumption that adding options does not change the relative odds of the others.",
+     sections=[("The property", [
+         "Independence of irrelevant alternatives: the odds of preferring i to j do not "
+         "depend on what else is in the set.",
+         Math("P(i ≻ j) ⁄ P(j ≻ i) = e^{U_i} ⁄ e^{U_j}   for every choice set"),
+         "It follows directly from the ratio form of the Luce model, since the shared "
+         "denominator cancels."]),
+       ("Where it fails", [
+         "The standard counterexample is the red-bus/blue-bus problem: someone indifferent "
+         "between a car and a bus should not become less likely to take the car merely "
+         "because the bus is repainted in two colours — yet the model says they do.",
+         "The film version: put two near-identical sequels in a set of ten and people tend "
+         "to push both down, splitting their appeal. Bradley–Terry and Plackett–Luce cannot "
+         "represent that, because it is exactly what the axiom forbids.",
+         "Design 2 shows ten films at once and is therefore more exposed to this than "
+         "Design 1, which never shows more than two — so the violation is confounded with "
+         "the manipulation being tested."])],
      advice="If a set of ten ever felt like it contained duplicates, this is why that matters.",
      related=["plackett-luce", "bradley-terry", "validity"])
 
 # --- fitting ---------------------------------------------------------------
 
 _add(slug="map", title="How w is fitted", group="Fitting",
-     short="Pick the w that makes your actual answers most likely — with a nudge toward zero.",
-     sections=[("The search", [
-         "Every candidate w assigns a probability to the answers you gave. Some w make "
-         "your answers look likely, others make them look like a fluke. Take the one that "
-         "makes them likeliest.",
-         "It is found by walking uphill: start at all zeros, work out which direction "
-         "improves things, step, repeat until stepping stops helping."]),
-       ("Why the nudge", [
-         "With twenty numbers and twenty-five answers, there are usually directions the "
-         "answers say nothing about, and left alone the search runs off to infinity along "
-         "them. A gentle pull toward zero stops that, and it says something sensible: in "
-         "the absence of evidence, assume no strong opinion."])],
-     advice="More answers means the pull toward zero matters less.",
+     short="Choose the w that makes your actual answers most probable, pulled gently toward zero.",
+     sections=[("The objective", [
+         "Every candidate w assigns a probability to the answers you gave. Take the one "
+         "maximising that, penalised so it stays finite:",
+         Math("ŵ = argmax_w  Σ_responses log P(response | w)  −  ‖w‖² ⁄ (2σ²)"),
+         "This is maximum a posteriori estimation — maximum likelihood plus a prior."]),
+       ("How it is found", [
+         "By gradient ascent. The gradient of the log-likelihood has a clean form: at each "
+         "stage it is the chosen film's features minus a probability-weighted average over "
+         "the films still available,",
+         Math("∇_w = Σₖ ( x_{iₖ} − Σ_{l ≥ k} p_l x_{i_l} )"),
+         "The objective is strictly concave — a concave log-likelihood plus a strictly "
+         "concave penalty — so a vanishing gradient certifies the global optimum. There are "
+         "no local maxima to worry about."])],
+     advice="More answers means the pull toward zero matters less, so a longer session gives sharper weights.",
      related=["prior", "preference-vector", "identifiability"])
 
 _add(slug="prior", title="The prior", group="Fitting",
-     short="A starting assumption of no strong opinions, overruled by evidence.",
-     sections=[("What it is here", [
-         "Before you answer anything, we assume your weights are smallish and centred on "
-         "zero — no violent opinions in any direction. Each answer you give pushes back "
-         "against that.",
-         "The strength is set so a one standard deviation change in a feature is worth "
-         "about one unit of utility, which is roughly a 73/27 preference. Weak, on purpose."]),
+     short="An assumption of no strong opinions, overruled by evidence.",
+     sections=[("What it assumes", [
+         "Before you answer anything, w is taken to be drawn from a spherical Gaussian "
+         "centred at zero,",
+         Math("w ∼ 𝒩(0, σ²I),   σ = 1"),
+         "which contributes the ‖w‖²/(2σ²) term above. σ = 1 says a one-standard-deviation "
+         "move in a feature is worth about one unit of utility — roughly a 73/27 preference. "
+         "A weak claim, deliberately."]),
        ("Why it is necessary rather than optional", [
-         "Without it the best-fitting w often does not exist — there is always a more "
-         "extreme w that fits slightly better. That is not a computational problem to "
-         "engineer around, it is the honest answer that twenty-five responses do not pin "
-         "down twenty numbers."])],
-     advice="It is why your fitted profile looks moderate even if your answers were decisive.",
+         "Without it the estimate frequently does not exist. With twenty dimensions and "
+         "twenty-five responses there are usually directions in w that no response "
+         "constrains, and the likelihood increases without bound along them.",
+         "This is the same phenomenon as separation in logistic regression: when the data "
+         "can be perfectly divided, the maximum-likelihood coefficients diverge. The penalty "
+         "is not a refinement; it is what makes the problem well posed."]),
+       ("Its lineage in the course", [
+         "It is lecture 1's step 3 — the penalisation R(h) — appearing for the third time. "
+         "Project 1 used it against overfitting, project 2 as a complexity measure, and "
+         "here as a prior making estimation possible from very little data."])],
+     advice="It is why your fitted profile looks moderate even if your answers felt decisive.",
      related=["map", "identifiability"])
 
 _add(slug="identifiability", title="Identifiability", group="Fitting",
-     short="Whether the answers could ever tell you a particular weight, even in principle.",
+     short="Whether the data could determine a parameter at all, even in principle.",
      sections=[("The problem", [
-         "Suppose you added one weight per director — 2,398 of them. Two films drawn at "
-         "random almost never share a director, so essentially every answer you give "
-         "multiplies those weights by zero. No number of answers would ever say anything "
-         "about them.",
-         "They are not weak features. They are unmeasurable ones at this budget, and "
-         "including them just lets the prior make things up."]),
-       ("How the feature set was chosen", [
-         "A genre earns a place only if random pairs of films actually differ on it. For "
-         "a genre appearing in a fraction p of films, that happens about 2p(1−p) of the "
-         "time; requiring one informative pair in ten leaves fourteen genres and drops "
-         "Western, Musical, Documentary and the rest."])],
-     advice="The features page shows the cut and everything that fell below it.",
+         "Add one weight per director — 2,398 of them. Two films drawn at random share a "
+         "director with probability well under 0.001, so essentially every response "
+         "multiplies those weights by zero. No number of answers would ever constrain them.",
+         "They are not weak features. They are unmeasurable at this budget, and including "
+         "them merely gives the prior room to invent preferences nobody expressed."]),
+       ("The rule used for genres", [
+         "A genre earns a dimension only if random pairs actually differ on it. For "
+         "prevalence p that happens with probability",
+         Math("P(differ) = 2p(1 − p)"),
+         "Requiring one informative pair in ten gives 2p(1−p) ≥ 0.1, whose lower root is "
+         "p ≥ 0.0528. Fourteen genres clear it; Western, at p ≈ 0.02, would be informative "
+         "in about one pair in twenty-six — one observation across a whole session."])],
+     advice="The features page shows the threshold and everything that fell below it.",
      related=["feature-vector", "prior", "map"])
 
 _add(slug="standardise", title="Standardising", group="Fitting",
-     short="Putting features on a common scale so their weights are comparable.",
-     sections=[("What was done", [
-         "Year, running time, score and vote count are measured in wildly different units. "
-         "Each is rewritten as \"how many standard deviations from the average film\", so a "
-         "weight of 0.5 means the same amount of preference whichever one it sits on."]),
-       ("Why genres were left alone", [
-         "Genre flags stay as plain 0 or 1. Scaling a rare genre to unit variance would "
-         "let the same weight produce a much bigger swing in utility than for a common "
-         "one, which is backwards — rare genres have less evidence behind them, not more."])],
-     advice="It is also why the profile bars at the end can be compared to each other.",
+     short="Putting features on a common scale so their weights mean the same thing.",
+     sections=[("The transformation", [
+         Math("z = (x − μ) ⁄ σ"),
+         "Year, running time, score and vote count are in wildly different units. After "
+         "standardising, a weight of 0.5 means the same amount of preference on any of "
+         "them, and a single spherical prior over w is a coherent assumption."]),
+       ("Why genre flags are left alone", [
+         "Scaling a genre with prevalence 0.06 to unit variance makes flipping it a roughly "
+         "four-standard-deviation move, so the same weight would produce a far larger "
+         "utility swing than for a common genre. An isotropic prior would then permit rare "
+         "genres — the ones with least evidence — the largest effects, which is backwards.",
+         "Left as plain 0/1, w_g is simply the utility of carrying the tag, and every genre "
+         "is shrunk equally."])],
+     advice="It is also what lets the profile bars at the end be compared with one another.",
      related=["feature-vector", "prior"])
 
 _add(slug="fisher", title="How much a task is worth", group="Fitting",
-     short="A way to measure how much one question narrows down w.",
-     sections=[("The idea", [
-         "Some questions are informative and some are not. Comparing two near-identical "
-         "romances tells you almost nothing; comparing a 1950s black-and-white drama with "
-         "a modern animated comedy tells you a lot.",
-         "Fisher information puts a number on that: how sharply the answer's probability "
-         "changes as w changes. Big number, informative question."]),
-       ("What it says about the two designs", [
-         "A ranking of ten contributes nine of these terms, so one ranking is worth "
-         "around sixty pairwise comparisons. That sounds decisive, and it is misleading. "
-         "Eight minutes buys eighty comparisons or five rankings, and counted that way "
-         "the totals come out almost equal.",
-         "Then a second thing goes wrong for ranking. Total information is not the same "
-         "as useful information. Eighty comparisons touch 160 different films and pin "
-         "down taste in every direction; five rankings touch fifty, and everything one "
-         "ranking teaches you is about those ten films. Whole directions of taste go "
-         "unmeasured, and the prior quietly fills them in.",
-         "So the arithmetic that looked like it favoured ranking ends up favouring "
-         "pairs. Whether that survives contact with real people is what the study is "
-         "for — all of it assumes people answer exactly as the model says."])],
-     advice="The report works the numbers through.",
+     short="A measure of how sharply one answer narrows down w — and a warning about reading it naively.",
+     sections=[("The quantity", [
+         "Fisher information measures how much an observation constrains a parameter. For a "
+         "softmax choice over a set S with probabilities p_s,",
+         Math("I = Σ_{s∈S} p_s x_s x_sᵀ  −  x̄ x̄ᵀ,   x̄ = Σ_s p_s x_s"),
+         "It is the covariance of the features under the choice distribution. A ranking "
+         "contributes one such term per stage; a pairwise comparison is the n = 2 case."]),
+       ("The naive reading, and why it misleads", [
+         "One ranking of ten is worth around sixty pairwise comparisons by trace. That "
+         "looks decisive until the budget is fixed by time rather than by task count: eight "
+         "minutes buys roughly eighty comparisons or five rankings, and the accumulated "
+         "traces then come out at about 118 against 129 — a ratio of 1.09, not 60."]),
+       ("Why the trace is the wrong summary", [
+         "Total information is not the same as useful information. Eighty comparisons touch "
+         "160 different films and constrain w in many directions. Five rankings touch fifty, "
+         "and the 45 comparisons inside one ranking all lie in the span of that set's ten "
+         "feature vectors.",
+         "Measured by log-determinant — the D-optimality criterion, which governs the volume "
+         "of the confidence region — ranking comes out 17.6 nats lower, with a smallest "
+         "eigenvalue about six times smaller. Whole directions of taste go unconstrained, "
+         "and the prior supplies the answer there."])],
+     advice="This reversal is why the study's hypothesis favours pairwise; the arithmetic that seemed to favour ranking does not survive the time correction.",
      related=["plackett-luce", "designs", "confound"])
 
 # --- the study -------------------------------------------------------------
 
 _add(slug="elicitation", title="Preference elicitation", group="The study",
-     short="Asking someone a few well-chosen questions to work out what they like.",
+     short="Asking a few well-chosen questions to infer what someone likes.",
      sections=[("What it means", [
-         "Not \"guessing from what you watched\" — there is nothing to guess from yet. "
-         "Directly asking, in a form people can actually answer.",
-         "People are bad at saying \"I weight thrillers at 0.6\" and good at saying \"that "
-         "one, not that one\". Elicitation is the business of turning the second into the "
-         "first."])],
-     advice="Both designs in this study are elicitation methods. That is what is being compared.",
+         "Not inferring taste from past behaviour — there is none yet — but asking directly, "
+         "in a form people can actually answer.",
+         "People are poor at stating parameters and good at making comparisons. Elicitation "
+         "is the business of converting the second into the first."])],
+     advice="Both designs in this study are elicitation methods; which one works better is the question.",
      related=["cold-start", "designs", "bradley-terry"])
 
 _add(slug="designs", title="The two designs", group="The study",
-     short="Design 1: pick one of two. Design 2: put ten in order.",
+     short="Design 1: choose one of two. Design 2: put ten in order.",
      sections=[("Design 1 — pairwise choice", [
-         "Two films, choose one, repeat. Each answer is tiny but it is easy, fast and "
-         "hard to get wrong."]),
+         "Two films, pick one, repeat. Each answer carries little information but the task "
+         "is fast, easy and hard to get wrong. Modelled directly by Bradley–Terry."]),
        ("Design 2 — rank ten", [
-         "Ten films, drag them into order. One answer carries far more information, but "
-         "it takes much longer, and ordering the middle of a list of ten is genuinely "
-         "difficult."]),
-       ("Why it is not obvious which wins", [
-         "Ranking wins on information per answer by a wide margin. Pairwise wins on "
-         "answers per minute and on how carefully each one is given. Which effect is "
-         "bigger is an empirical question about people, not a fact about the maths."])],
+         "Ten films dragged into order. One answer carries far more, but the task is slow "
+         "and ordering the middle of a list of ten is genuinely difficult. Needs the "
+         "Plackett–Luce extension."]),
+       ("Why the answer is not obvious", [
+         "Ranking wins decisively on information per task. Pairwise wins on tasks per "
+         "minute, and on how carefully each answer is given. Which effect dominates is an "
+         "empirical question about people rather than a fact about the algebra."])],
      advice="You were assigned one of these at random when you started.",
      related=["fisher", "confound", "between-subjects"])
 
 _add(slug="holdout", title="The held-out block", group="The study",
-     short="Ten fresh comparisons at the end, used to score how well we learned you.",
+     short="Ten fresh comparisons at the end, used to score how well your taste was learned.",
      sections=[("Why it exists", [
-         "We want to know which design learned your taste better. But your true taste is "
-         "never observed, so \"how close is the estimate\" cannot be measured.",
-         "What can be measured is prediction. Fit w on the elicitation answers only, then "
-         "see how well it calls ten comparisons it never saw. A w that has genuinely "
-         "learned something gets these right."]),
+         "The natural outcome measure is how close the estimated ŵ is to your true w. It "
+         "cannot be computed: w is latent and never observed for a real person, so there is "
+         "no ground truth to compare against.",
+         "What can be measured is prediction. Fit w on the elicitation answers alone, then "
+         "see how well it calls ten comparisons it never saw."]),
        ("Why it is identical in both arms", [
-         "Same task, same number, same instructions, whichever design you were given. If "
-         "the test itself differed between the arms, any difference in the result could be "
-         "the test rather than the design."])],
-     advice="Two of the held-out pairs are repeats of earlier ones, shown with the sides swapped.",
+         "Same task, same count, same wording, whichever design you were given. If the test "
+         "itself differed between arms, any difference in the result could be the test "
+         "rather than the design being tested."])],
+     advice="Two of the held-out pairs are repeats of earlier ones with the sides swapped.",
      related=["log-loss", "preference-vector", "attention-check"])
 
 _add(slug="log-loss", title="Log loss", group="The study",
-     short="Scores a prediction on how confident it was, not just whether it was right.",
-     sections=[("What it measures", [
-         "Predicting the right film with 90% confidence scores better than predicting it "
-         "with 55%. Predicting the wrong one with 90% confidence scores much worse than "
-         "getting it wrong hesitantly.",
-         "A model that knows nothing says 50/50 every time and scores 0.693. Anything "
-         "below that has learned something; above it, worse than a coin."]),
-       ("Why not just count how many were right", [
-         "Because with only ten held-out comparisons, plain accuracy takes eleven possible "
-         "values and throws away all the confidence information. Log loss uses the whole "
-         "prediction, so it can tell two designs apart on far fewer participants."])],
+     short="Scores a prediction on its confidence, not merely on whether it was right.",
+     sections=[("Definition", [
+         Math("ℒ = −(1/m) Σ log σ( wᵀ(x_chosen − x_rejected) )"),
+         "Predicting the chosen film with 90% confidence scores better than predicting it "
+         "with 55%; predicting the wrong one confidently scores much worse than getting it "
+         "wrong hesitantly."]),
+       ("The reference value", [
+         "A model that has learned nothing answers 0.5 every time and scores −log(0.5) = "
+         "log 2 ≈ 0.693. Below that line something was learned; above it, worse than a coin."]),
+       ("Why not accuracy", [
+         "On ten held-out items accuracy takes eleven possible values and discards all the "
+         "confidence information, so it needs far more participants to separate two arms. "
+         "Log loss uses the whole prediction and is therefore the more powerful test at a "
+         "fixed sample size."])],
      advice="0.693 is the line to beat, and it is marked on your debrief.",
      related=["holdout", "power"])
 
 _add(slug="between-subjects", title="Between subjects", group="The study",
      short="Each participant does one design, not both.",
-     sections=[("Why not both", [
-         "It would be more sensitive — each person acting as their own comparison — but "
-         "by the time you have ranked ten films you understand your own taste better, and "
-         "you would do the second design differently for that reason alone. There is no "
-         "ordering that removes it.",
-         "So each participant gets one design, chosen at random, and the arms are "
-         "compared across people."]),
+     sections=[("The trade-off", [
+         "A within-subjects design, where everyone does both, is more sensitive — each "
+         "person acts as their own control, so differences between people drop out of the "
+         "comparison. It also needs fewer participants.",
+         "It is rejected here for a reason no counterbalancing removes: having ranked ten "
+         "films, a participant understands their own taste better and would approach the "
+         "second condition differently for that reason alone. Order effects can be "
+         "balanced; genuine learning about oneself cannot be undone."]),
        ("The cost", [
-         "It needs more participants, because differences between people now sit on top of "
-         "the difference you are looking for. That is what the power calculation is for."])],
-     advice="You were assigned at random. The report explains the blocking used in the real study.",
+         "Between-subjects needs more participants, because person-to-person variability now "
+         "sits on top of the effect being measured. That is what the power calculation "
+         "accounts for."]),
+       ("Blocking", [
+         "Assignment is randomised within strata defined by viewing frequency. Frequent "
+         "viewers have firmer preferences and lower response noise, and leaving that to "
+         "simple randomisation risks it landing unevenly across the two arms."])],
+     advice="You were assigned at random; the report explains the blocking used in the full study.",
      related=["designs", "power", "confound"])
 
 _add(slug="confound", title="The time confound", group="The study",
-     short="Comparing 40 pairs to 8 rankings compares two arbitrary numbers.",
+     short="Comparing 40 pairs against 8 rankings compares two arbitrary numbers.",
      sections=[("The trap", [
-         "Give one arm forty comparisons and the other eight rankings and whichever wins, "
-         "the answer is about those two numbers, not about the designs.",
-         "What a recommender is actually spending is the user's patience. Eight minutes is "
-         "eight minutes whichever way it is spent."]),
+         "Give one arm forty comparisons and the other eight rankings, and whichever wins, "
+         "the finding is about those two numbers. Change them to eighty and four and the "
+         "result may reverse.",
+         "A confound is any variable that differs between conditions alongside the one you "
+         "meant to manipulate. Here task count would differ, so the design and the amount "
+         "of work would be varied together and could not be separated."]),
        ("What the study does", [
-         "Both arms get the same wall-clock elicitation budget and do as many tasks as fit. "
-         "The comparison is then about information per minute, which is the quantity "
-         "anyone building this would care about."])],
+         "Both arms receive the same wall-clock elicitation budget and complete as many "
+         "tasks as fit. What a recommender actually spends is the user's patience, and "
+         "eight minutes is eight minutes however it is divided.",
+         "A consequence worth noting: the number of tasks is then an outcome of the "
+         "experiment rather than a setting of it, and it will vary between participants."])],
      advice="The timer on the study page is that budget running down.",
      related=["designs", "fisher", "validity"])
 
 _add(slug="power", title="How many participants", group="The study",
-     short="Working out the sample size before running anything, not after.",
+     short="Deciding the sample size before running anything.",
      sections=[("The calculation", [
-         "For a moderate difference between the two arms, a two-sided test at the "
-         "conventional 5% level with an 80% chance of detecting it needs about 64 people "
-         "per arm — 128, plus a margin for exclusions, so 150 recruited.",
-         "Doing this first is the point. Deciding afterwards how many people you needed "
-         "is how you end up finding whatever you were hoping for."]),
+         "For a two-sample comparison of means with standardised effect size d, one-sided α "
+         "and power 1−β, the required sample per arm is",
+         Math("n = 2 ( z_{1−α} + z_{1−β} )² ⁄ d²"),
+         "With d = 0.5, α = .05 and power 0.8 this gives 2(1.645 + 0.842)²/0.25 ≈ 49.5, so "
+         "50 per arm — inflated for exclusions and dropout to 75 per arm, 150 recruited."]),
+       ("Why it must come first", [
+         "Deciding afterwards how many participants you needed is how researchers find "
+         "whatever they were hoping for. Choose d by asking how big a difference would "
+         "actually change what someone builds; a difference too small to act on is not "
+         "worth powering for."]),
        ("Pre-registration", [
-         "The hypothesis, the primary outcome, the exclusions and the test are all written "
-         "down before the first participant. Otherwise there are a dozen defensible "
-         "analyses and the one that gets reported is the one that worked."])],
-     advice="Section 4 of the PDF has the full calculation.",
+         "The hypothesis, the primary outcome, the exclusion rules and the statistical test "
+         "are all recorded before the first participant. Otherwise a dozen defensible "
+         "analyses exist and the one that gets reported is the one that worked."])],
+     advice="Section 4 of the PDF works the calculation through.",
      related=["log-loss", "between-subjects", "validity"])
 
 _add(slug="attention-check", title="Attention checks", group="The study",
      short="Repeated questions that reveal who was clicking at random.",
      sections=[("How they work here", [
-         "Two of the held-out pairs come round a second time with the films swapped left "
-         "to right. Someone actually deciding will mostly answer the same way twice; "
-         "someone clicking through will not.",
-         "Disagreeing on both is the pre-registered reason to exclude a participant — "
-         "decided in advance, so it cannot be applied selectively to whoever spoils the "
+         "Two of the held-out pairs return a second time with the films swapped left to "
+         "right. Someone genuinely deciding will mostly answer the same way twice; someone "
+         "clicking through will not.",
+         "The swap matters. A participant favouring one side out of habit would pass an "
+         "identical re-presentation and fails this one."]),
+       ("Why the rule is fixed in advance", [
+         "Disagreeing on both repeats is the pre-registered exclusion criterion. Deciding it "
+         "before collection is what stops it becoming a way to remove whoever spoiled the "
          "result."])],
      advice="Your own consistency is reported on the debrief page.",
      related=["holdout", "power", "validity"])
 
 _add(slug="validity", title="Threats to validity", group="The study",
-     short="The ways this study could give the right answer to the wrong question.",
-     sections=[("The ones that matter here", [
-         "Films nobody recognises turn preference into guessing — handled by the vote "
-         "threshold on the pool.",
-         "Ranking ten items invites carelessness at the bottom of the list, so the fitted "
-         "w may be learning noise from positions eight to ten. The analysis models "
-         "position-dependent noise rather than assuming it away.",
+     short="The ways a study can give the right answer to the wrong question.",
+     sections=[("Internal and external", [
+         "Internal validity asks whether the observed difference was really caused by the "
+         "manipulation. External validity asks whether the finding generalises beyond the "
+         "people and setting studied. Randomisation buys the first; it does nothing for the "
+         "second."]),
+       ("The ones that matter here", [
+         "Unrecognised films turn preference into guessing — handled by the vote threshold "
+         "on the pool, though not eliminated.",
+         "Ranking ten items invites carelessness toward the bottom of the list, so the "
+         "fitted w may partly be learning noise from positions eight to ten. The analysis "
+         "models position-dependent noise rather than assuming it away.",
          "Sets of ten can contain near-duplicates, which the model is formally unable to "
-         "handle. It is recorded as a limitation, not fixed.",
-         "Prolific participants are not a random sample of humanity. The finding is about "
-         "the designs on that population, and the report says so."])],
-     advice="A study that lists none of these has not looked.",
+         "handle, and this affects Design 2 specifically — so it is confounded with the "
+         "manipulation.",
+         "Participants recruited online are not a random sample of humanity, so the finding "
+         "is about these designs on that population."])],
+     advice="A study listing none of these has not looked for them.",
      related=["iia", "attention-check", "power"])
 
 _add(slug="consent", title="Informed consent", group="The study",
-     short="You are told what will happen and what is recorded, before anything starts.",
+     short="You are told what will happen and what is recorded before anything begins.",
      sections=[("What is recorded", [
          "Which design you were given, which films you chose or how you ordered them, how "
          "long each task took, and one coarse answer about how often you watch films. "
-         "Nothing that identifies you.",
-         "No name, no email, no IP address, no cookie beyond the one that keeps this "
-         "session going."]),
+         "Nothing identifying — no name, no email, no IP address, and no cookie beyond the "
+         "one keeping the session alive.",
+         "Under GDPR that makes the dataset pseudonymous, with consent as the lawful basis "
+         "and withdrawal deleting the record."]),
        ("What you can do", [
-         "Stop at any point with the button on the study page, and the run ends there. In "
-         "the real study, withdrawing means the data is deleted and the payment is still "
-         "made."])],
-     advice="Consent that requires understanding the maths is not consent, which is why these pages exist.",
-     related=["movies", "designs"])
+         "Stop at any point using the button on the study page; the run ends there and what "
+         "you have already answered is still fitted. In the real study, withdrawing deletes "
+         "the data and payment is made regardless."]),
+       ("Why these pages exist", [
+         "Lecture 7 is explicit that even a seemingly harmless study is a study on human "
+         "beings. Consent that requires a statistics degree to understand is not informed "
+         "consent, which is why every technical term on the participant-facing screens links "
+         "to an explanation."])],
+     advice="Nothing here is required of you; you can close the tab at any point.",
+     related=["movies", "designs", "validity"])
 
 _add(slug="ranking", title="Ranking ten films", group="The study",
-     short="Putting a list in order from most to least preferred.",
-     sections=[("How to do it here", [
-         "Drag a film to move it, or use the up and down buttons on each row. The buttons "
-         "are not a fallback for the clumsy: dragging is unusable with a keyboard or a "
-         "screen reader, and an interface that only works one way excludes participants.",
-         "Position one is your favourite, position ten your least favourite."]),
+     short="Ordering a list from most to least preferred.",
+     sections=[("How to do it", [
+         "Drag a row to move it, or use the up and down buttons. The buttons are not a "
+         "fallback for the clumsy: dragging is unusable with a keyboard or a screen reader, "
+         "and an interface working only one way excludes participants — invisibly, since "
+         "they appear in the data as dropouts.",
+         "Position one is your favourite, position ten your least preferred."]),
        ("Doing it honestly", [
-         "The top and bottom are usually easy and the middle is genuinely hard. Getting "
-         "the middle roughly right is fine — the model expects imprecision and this study "
-         "is partly about measuring how much of it there is."])],
-     advice="You can reorder as much as you like before submitting.",
+         "The top and bottom are usually easy and the middle is genuinely hard. Roughly "
+         "right is fine — the model expects imprecision, and measuring how much of it there "
+         "is happens to be one of the study's secondary questions."])],
+     advice="Reorder as much as you like before submitting; nothing is recorded until you do.",
      related=["plackett-luce", "designs", "iia"])

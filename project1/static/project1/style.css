@@ -426,3 +426,15 @@ h2 .p1-info {
 .p1-doc ul { margin: 0 0 14px; padding-left: 20px; }
 .p1-doc li { padding: 3px 0; line-height: 1.55; }
 .p1-doc table { margin-bottom: 16px; }
+
+/* ---- display formulas in the explanation pages ---- */
+.p1-math {
+    margin: 16px auto; padding: 13px 18px; text-align: center;
+    background: #F7F9FC; border: 1px solid #E3EAF4; border-radius: 8px;
+    font-family: 'Cambria Math', Cambria, Georgia, 'Times New Roman', serif;
+    font-size: 17px; line-height: 1.6; color: #16233A; overflow-x: auto;
+}
+.p1-aside {
+    font-size: 13.5px; color: #6B7893; margin: -4px 0 12px;
+    padding-left: 12px; border-left: 2px solid #DCE4F0;
+}

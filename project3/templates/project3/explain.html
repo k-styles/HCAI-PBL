@@ -7,7 +7,7 @@
     {% for heading, paragraphs in topic.sections %}
         <div class="p3-card">
             <h2>{{ heading }}</h2>
-            {% for para in paragraphs %}<p>{{ para }}</p>{% endfor %}
+            {% for para in paragraphs %}{% if para.is_math %}<div class="p3-math">{{ para }}</div>{% elif para.is_aside %}<p class="p3-aside">{{ para }}</p>{% else %}<p>{{ para }}</p>{% endif %}{% endfor %}
         </div>
     {% endfor %}
     {% if topic.advice %}

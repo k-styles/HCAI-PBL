@@ -14,6 +14,27 @@ class Topic:
     group: str = "General"
 
 
+class Math(str):
+    """A display formula inside a section's paragraph list.
+
+    Subclassing str keeps every existing paragraph a plain string, so nothing
+    else has to change. The template asks for `.is_math`; a plain str has no
+    such attribute and Django resolves that to the empty string, which is
+    falsy -- so the two render differently without any type checking in the
+    template.
+
+    Formulas are written in unicode rather than LaTeX. These pages must render
+    with no network and no JavaScript, which rules out MathJax and KaTeX, and
+    the expressions here are small enough that unicode is honest about them.
+    """
+    is_math = True
+
+
+class Aside(str):
+    """A smaller note under a paragraph -- notation reminders, caveats."""
+    is_aside = True
+
+
 TOPICS = {}
 
 
@@ -21,247 +42,412 @@ def _add(**kw):
     TOPICS[kw["slug"]] = Topic(**kw)
 
 
-_add(slug="penguins", title="The penguins", group="The data",
+_add(slug="penguins", title="The Palmer Penguins", group="The data",
      short="344 penguins from three species, measured on four body dimensions.",
      sections=[("What is in it", [
-         "Real measurements from Palmer Station, Antarctica: bill length and depth, "
-         "flipper length, body mass, plus which island the bird was on, its sex and the "
-         "year. The job is to work out the species from the rest.",
-         "Eleven of the 344 rows are missing something and are set aside, leaving 333."]),
-       ("Why it is a good example", [
-         "Two of the three species are easy to tell apart and two are genuinely similar, "
-         "so a model has to do real work without the problem being hopeless."])],
-     advice="Everything on these pages is about this one table.",
-     related=["accuracy", "test-set"])
+         "Body measurements collected at Palmer Station, Antarctica, between 2007 and "
+         "2009 by Kristen Gorman: bill length and depth, flipper length and body mass, "
+         "plus the island, the sex and the year. The task is to recover the species.",
+         "Eleven of the 344 rows are missing at least one measurement and are dropped, "
+         "leaving 333. Formally the design matrix is X ∈ ℝ³³³ˣ⁴ for the numeric features, "
+         "with the target y taking one of three values."]),
+       ("Why it replaced iris", [
+         "It is the same shape of problem as Fisher's iris data — three classes, four "
+         "continuous measurements — without iris's baggage: Fisher published it in the "
+         "Annals of Eugenics, and the dataset has been used to death.",
+         "It is also slightly harder in a useful way. Gentoo separates almost trivially "
+         "on flipper length and body mass, while Adelie and Chinstrap overlap heavily on "
+         "everything except bill length. A model therefore has to do real work on one "
+         "boundary while the other is free."])],
+     advice="Every number on these pages comes from this one table.",
+     related=["accuracy", "test-set", "correlation"])
 
 _add(slug="tree", title="Decision tree", group="Models",
-     short="A flowchart of yes/no questions that ends in an answer.",
+     short="A sequence of threshold tests on single features, ending in a class.",
      sections=[("How it works", [
-         "\"Is the flipper shorter than 207 mm? If yes, is the bill shorter than 43 mm? "
-         "If yes, it's an Adelie.\" The model works out the questions itself.",
-         "You can read it. That is unusual for a model and it is the reason this project "
-         "uses one."]),
+         "The model asks questions of the form \"is feature j below threshold t?\" and "
+         "follows the answer down a branch until it reaches a leaf, which carries a "
+         "prediction. \"Is the flipper shorter than 207 mm? If yes, is the bill shorter "
+         "than 43 mm? Then Adelie.\"",
+         "Nothing about the questions is supplied by you. At each node the algorithm "
+         "searches over every feature and every candidate threshold and keeps the split "
+         "that most reduces impurity in the two children. scikit-learn's default measure "
+         "is the Gini impurity of a node,"]),
+       ("The splitting criterion", [
+         Math("G = 1 − Σₖ pₖ²"),
+         Aside("pₖ is the proportion of the node's samples belonging to class k."),
+         "G is 0 when a node holds a single class and rises as the node becomes mixed — "
+         "for three equally represented classes it reaches 1 − 3·(1/3)² = 2/3. The split "
+         "chosen is the one maximising the weighted drop in G from parent to children.",
+         "Entropy, −Σₖ pₖ log pₖ, is the usual alternative and behaves almost identically; "
+         "Gini is cheaper because it avoids the logarithm."]),
+       ("Why this project uses one", [
+         "It is directly readable. The rules are the model, not a summary of it — the "
+         "distinction lecture 2 draws between an interpretable model and an explainable "
+         "one. There is no gap between what the tree does and what you are told it does."]),
        ("Where it goes wrong", [
-         "Left alone it keeps asking questions until it has a private rule for every bird "
-         "in the training data, including the odd ones. That looks perfect on data it has "
-         "seen and disappoints on anything new."])],
-     advice="Read the tree as sentences rather than as a diagram; it is the same model.",
-     related=["leaves", "overfitting", "complexity"])
+         "Grown without constraint, a tree keeps splitting until every leaf is pure, which "
+         "on 333 rows means a private rule for each unusual bird. Training accuracy hits "
+         "1.0 and test accuracy does not follow."])],
+     advice="Read the tree as sentences rather than as a diagram; it is the same model, and the sentences stay readable for longer.",
+     related=["leaves", "overfitting", "complexity", "logistic"])
 
-_add(slug="logistic", title="Logistic regression", group="Models",
-     short="Gives each measurement a weight, adds them up, and turns the total into a probability.",
-     sections=[("How it works", [
-         "Each feature gets a number saying how much it pushes towards each species. Add "
-         "them up and you get a score per species; the biggest wins."]),
-       ("Why it is here", [
-         "It is the natural contrast to a tree. A tree asks questions in sequence; this "
-         "weighs everything at once. They are readable in different ways, which is why the "
-         "brief asks for a complexity measure for each."])],
-     advice="Its readability is about how many features carry a non-zero weight.",
-     related=["coefficient", "sparsity", "complexity"])
+_add(slug="logistic", title="Multinomial logistic regression", group="Models",
+     short="A weighted sum of the features per class, turned into probabilities by the softmax.",
+     sections=[("The model", [
+         "Each class c gets a weight vector w_c and a bias b_c. The score for class c is "
+         "the linear combination w_cᵀx + b_c, and the scores are converted into "
+         "probabilities that sum to one by the softmax function,"]),
+       ("The softmax", [
+         Math("P(y = c | x)  =  exp(w_cᵀx + b_c) ⁄ Σⱼ exp(w_jᵀx + b_j)"),
+         "Exponentiating makes every score positive; dividing by the sum makes them add "
+         "to one. The prediction is the class with the largest probability, which is also "
+         "the class with the largest score, since exp is increasing.",
+         "For two classes this collapses to the familiar logistic sigmoid σ(z) = 1/(1+e⁻ᶻ) "
+         "applied to the difference of the two scores."]),
+       ("How it is fitted", [
+         "By minimising the cross-entropy loss over the training set plus a penalty, which "
+         "is exactly the shape of lecture 1's objective:",
+         Math("argmin_w  −(1/n) Σᵢ log P(yᵢ | xᵢ)  +  λ‖w‖"),
+         "Cross-entropy is used rather than accuracy because the 0–1 loss behind accuracy "
+         "is neither convex nor differentiable, so it cannot be optimised directly. "
+         "Cross-entropy is a convex surrogate that is minimised by the same predictor."]),
+       ("Why it is the contrast to a tree", [
+         "A tree partitions the input space into axis-aligned boxes and is constant inside "
+         "each. Logistic regression draws straight boundaries and varies smoothly. They "
+         "are readable in different ways — one as rules you follow, the other as weights "
+         "you compare — which is exactly why the brief asks for a separate complexity "
+         "measure for each."])],
+     advice="Because it is differentiable, it is also the model for which the ALE derivative can be computed exactly.",
+     related=["coefficient", "sparsity", "complexity", "ale"])
 
 _add(slug="leaves", title="Leaves", group="Complexity",
-     short="The number of endings a tree has — how many different answers it can give.",
+     short="The number of terminal nodes — how many distinct rules the tree contains.",
      sections=[("What it counts", [
-         "Every path through the questions ends at a leaf, and each leaf is one verdict. "
-         "Three leaves means three rules to read; fourteen means fourteen."]),
-       ("Why count them", [
-         "It is a direct measure of how much you have to take in before you can say what "
-         "the model does. The brief fixes this as the complexity measure for trees."])],
-     advice="More leaves is not automatically better; watch the accuracy stop improving.",
+         "Every path from the root to a leaf is one rule, and every leaf is one verdict. "
+         "A tree with three leaves is three sentences; one with fourteen is fourteen.",
+         "For a binary tree the count of leaves L and of internal decision nodes are "
+         "related by internal = L − 1, so counting leaves counts questions too."]),
+       ("Why it is the right measure here", [
+         "Ω is meant to capture how much of a model a person must read. Leaves count "
+         "exactly that, which is why the brief fixes Ω(f) = number of leaves for trees.",
+         "Depth would be a poor substitute: a tree of depth 5 can have anywhere between 6 "
+         "and 32 leaves, so depth constrains complexity only loosely."])],
+     advice="Watch where accuracy stops improving as leaves increase — that gap is what the λ slider is for.",
      related=["complexity", "tree", "lambda"])
 
 _add(slug="complexity", title="Complexity, Ω", group="Complexity",
-     short="How much of a model you have to read before you understand it.",
-     sections=[("The idea", [
-         "Two models can be equally accurate and wildly different to live with. One is "
-         "three sentences; the other is fourteen branching rules. Ω puts a number on that."]),
+     short="How much of a model you must read before you can say what it does.",
+     sections=[("Where it comes from", [
+         "Lecture 1 states supervised learning as minimising a penalised empirical loss. "
+         "The penalty term R(h) reappears in lecture 2 under the name Ω, with a different "
+         "justification: not to prevent overfitting but to promote interpretability."]),
+       ("The objective", [
+         Math("argmin_f  (1/n) Σᵢ ℓ(f(xᵢ), yᵢ)  +  λ Ω(f)"),
+         Aside("Equation (1) of the project brief. It is the same expression as lecture 1's, with R renamed Ω."),
+         "Two models can be equally accurate and completely different to live with. Ω puts "
+         "a number on that difference so it can be traded against accuracy explicitly "
+         "rather than by taste."]),
        ("It means different things per model", [
-         "For a tree it is the number of leaves — the brief says so. For logistic "
-         "regression we chose the number of features with a non-zero weight, because a "
-         "feature weighted zero costs the reader nothing."])],
-     advice="Ω is the quantity the slider trades against accuracy.",
-     related=["leaves", "sparsity", "lambda"])
+         "For a tree the brief fixes it as the number of leaves. For logistic regression "
+         "the brief asks you to choose — the measure used here is the number of features "
+         "with a non-zero coefficient. Both count how many things must be inspected."])],
+     advice="Ω is a modelling decision, not a property of the data. A different Ω gives a different frontier.",
+     related=["leaves", "sparsity", "lambda", "reachable"])
 
-_add(slug="lambda", title="Lambda, the slider", group="Complexity",
-     short="How much accuracy one unit of complexity has to buy before it is worth having.",
-     sections=[("What it does", [
-         "The app picks whichever model scores highest on accuracy minus λ times "
-         "complexity. At λ = 0 complexity is free and the most accurate model wins. Turn λ "
-         "up and each extra leaf has to earn its place."]),
-       ("Why it is yours to set", [
-         "It encodes how much you care about being able to read the model, which depends "
-         "on what you need it for. Nobody can pick it for you, so it is a control rather "
-         "than a number in the code."])],
-     advice="Watch the table of λ ranges: there are only a handful of models it can ever give you.",
-     related=["complexity", "reachable", "overfitting"])
+_add(slug="lambda", title="The trade-off parameter λ", group="Complexity",
+     short="The exchange rate between accuracy and simplicity — how much accuracy one extra unit of complexity must earn.",
+     sections=[("What the slider does", [
+         "Among the trained models, the interface shows the one maximising"]),
+       ("The selection criterion", [
+         Math("score(f) = acc_test(f) − λ · Ω(f)"),
+         "At λ = 0 complexity is free and the most accurate model always wins. As λ grows, "
+         "each unit of Ω costs λ points of accuracy, and simpler models overtake.",
+         "The units matter: λ is measured in accuracy per leaf. λ = 0.01 says one extra "
+         "leaf must buy at least one percentage point of accuracy to be worth having."]),
+       ("Why it cannot be computed", [
+         "There is no correct λ. It encodes how much a particular person, for a particular "
+         "purpose, values being able to read the model. A clinician explaining a decision "
+         "to a patient and a researcher maximising held-out accuracy have different λ, and "
+         "neither is wrong.",
+         "That is the whole reason it is a slider rather than a constant in the code."])],
+     advice="Sweep it end to end once. The set of models it can reach is smaller than you expect.",
+     related=["complexity", "reachable", "leaves"])
 
 _add(slug="reachable", title="Which models the slider can reach", group="Complexity",
-     short="Most trained models can never be selected, at any setting of the slider.",
-     sections=[("Why", [
-         "For a fixed model, accuracy minus λ times complexity is a straight line as λ "
-         "changes. Picking the best model is picking the highest line, and only the lines "
-         "on the top edge are ever highest.",
-         "A model that is both more complicated and less accurate than another is beaten "
-         "everywhere. So is one that sits below the line joining two others."]),
-       ("What it buys you", [
-         "It turns a dial you drag blindly into a short list with exact boundaries: here "
-         "are the four models available, and here is the range of λ that gives each."])],
-     advice="Greyed points in the plot are models no setting will ever produce.",
-     related=["lambda", "complexity"])
+     short="Most trained models can never be selected, at any λ. The selectable ones lie on a concave hull.",
+     sections=[("Each model is a line", [
+         "Fix a model f. Its score as a function of λ is",
+         Math("s_f(λ) = acc(f) − λ·Ω(f)"),
+         "which is a straight line with intercept acc(f) and slope −Ω(f). With ten "
+         "candidate models you have ten lines, and the slider reports whichever is highest "
+         "at the current λ."]),
+       ("The consequence", [
+         "The winner is always on the upper envelope of the set of lines — the upper "
+         "concave hull of the points (Ω(f), acc(f)). Anything strictly inside the hull is "
+         "beaten everywhere and can never be selected.",
+         "In particular a model that is both less accurate and more complex than another "
+         "is dominated and is invisible to the slider no matter what you do.",
+         "Typically only three or four of ten trained trees are ever reachable. The others "
+         "were trained, scored, and can never be chosen."]),
+       ("Reading the frontier", [
+         "The λ at which two adjacent hull models swap is the slope of the segment joining "
+         "them: Δacc ⁄ ΔΩ. That number is the exact price of the simplification — the "
+         "accuracy given up per leaf removed."])],
+     advice="The switch points are more informative than the slider position; they say what each simplification costs.",
+     related=["lambda", "complexity", "leaves"])
 
-_add(slug="sparsity", title="Sparsity and the L1 penalty", group="Complexity",
-     short="Pushing a model to use as few features as possible by driving weights to exactly zero.",
-     sections=[("The mechanism", [
-         "An L1 penalty charges the model for the size of its weights in a way that makes "
-         "the cheapest option often exactly zero. A feature with a zero weight is simply "
-         "not consulted."]),
-       ("Why not the other penalty", [
-         "The more common L2 penalty shrinks weights towards zero but never reaches it, so "
-         "every feature stays in the model, and the count we use as Ω would never move. "
-         "The slider would do nothing."])],
-     advice="Look at the coefficient table — dropped features are greyed out.",
+_add(slug="sparsity", title="Sparsity", group="Complexity",
+     short="How many features carry a non-zero weight — the complexity measure used for the linear model.",
+     sections=[("The measure", [
+         "For logistic regression, Ω(f) is taken to be the number of coefficients that are "
+         "not zero, written",
+         Math("Ω(f) = ‖w‖₀ = #{ j : w_j ≠ 0 }"),
+         Aside("The ℓ₀ 'norm' — a count, not a norm in the mathematical sense, since it is not homogeneous."),
+         "A feature with weight zero is never consulted, so it need not be understood. The "
+         "count is therefore the number of things you must look at, which is the same "
+         "quantity leaves measure for a tree."]),
+       ("Why not the size of the weights", [
+         "‖w‖₂² is the standard ridge penalty, but a model with two hundred tiny "
+         "coefficients scores low on it and is completely unreadable. It measures "
+         "magnitude, not how much there is to read."]),
+       ("How zeros are produced", [
+         "Fitting with an ℓ₁ penalty drives coefficients exactly to zero rather than merely "
+         "shrinking them. Geometrically the ℓ₁ ball has corners on the axes, and the "
+         "optimum tends to land on one. ℓ₂ has no corners and shrinks everything smoothly "
+         "without ever reaching zero."])],
+     advice="The brief itself calls the slider “sparsity”, which is a strong hint about the intended Ω.",
      related=["coefficient", "complexity", "logistic"])
 
-_add(slug="coefficient", title="Coefficients", group="Models",
-     short="The weight each measurement carries, and in which direction.",
-     sections=[("Reading them", [
-         "A large positive number means that measurement pushes strongly towards that "
-         "species; a large negative one pushes away. Zero means it is ignored."]),
-       ("A catch", [
-         "Raw weights are not comparable across features measured in millimetres and "
-         "grams, so the model is fitted on rescaled measurements and the numbers shown are "
-         "on that scale."])],
-     advice="Compare their sizes, not their raw units.",
-     related=["sparsity", "logistic", "scaling"])
+_add(slug="coefficient", title="Coefficient", group="Models",
+     short="The weight a linear model gives one feature for one class.",
+     sections=[("Reading one", [
+         "In w_cᵀx, the entry w_{c,j} says how strongly feature j pushes towards class c. "
+         "Positive pushes towards, negative away, and the magnitude says how hard.",
+         "Because the features here are standardised, the coefficients are directly "
+         "comparable: each is the change in the class score produced by a one-standard-"
+         "deviation change in that feature."]),
+       ("What it is not", [
+         "A coefficient is not a causal effect and not an importance ranking that survives "
+         "correlated features. If flipper length and body mass move together, the fit can "
+         "place the weight on either, or split it between them, with little effect on "
+         "predictions. Do not read a small coefficient as “this feature does not matter”."])],
+     advice="Compare coefficients within one class, not across classes; the softmax is invariant to adding a constant to every class score.",
+     related=["logistic", "sparsity", "scaling", "correlation"])
 
 _add(slug="accuracy", title="Accuracy", group="Measuring",
-     short="Of all the predictions made, the share that were right.",
-     sections=[("The arithmetic", [
-         "Count correct predictions, divide by the total. That is all."]),
-       ("What it hides", [
-         "It says nothing about which species the mistakes fall on. With three species of "
-         "unequal size, a model can look respectable while being useless on the smallest."])],
-     advice="Always read it next to how complicated the model is.",
-     related=["test-set", "penguins"])
+     short="The fraction of test penguins classified correctly.",
+     sections=[("Definition", [
+         Math("acc = (1/n) Σᵢ 1[ f(xᵢ) = yᵢ ]"),
+         Aside("1[·] is the indicator function: 1 when the condition holds, 0 otherwise."),
+         "Simple, and adequate here because the three species are reasonably balanced — "
+         "roughly 44%, 36% and 20% of the data."]),
+       ("When it misleads", [
+         "With imbalanced classes accuracy is dominated by the majority class. If one "
+         "species were 90% of the data, always predicting it scores 0.9 while being "
+         "useless. Macro-averaged F1 or a confusion matrix says more in that case.",
+         "Accuracy is also the reason the objective uses cross-entropy for fitting: the "
+         "0–1 loss underlying accuracy is neither convex nor differentiable, so it cannot "
+         "be optimised directly."])],
+     advice="Always read accuracy next to the class proportions; on its own it is not interpretable.",
+     related=["test-set", "overfitting", "penguins"])
 
-_add(slug="test-set", title="Test set", group="Measuring",
-     short="Birds held back from training, used to check the model honestly.",
-     sections=[("Why", [
-         "A model can always recite the examples it learned from. The only meaningful "
-         "question is how it does on birds it has never seen, so 30% are set aside."]),
-       ("Used consistently", [
-         "Every model on these pages is scored on the same held-back birds, so a model "
-         "cannot look better simply by having been given an easier test."])],
-     advice="Nothing to set; it is why the numbers are comparable.",
+_add(slug="test-set", title="The test set", group="Measuring",
+     short="Rows held back from fitting, used to estimate performance on data the model has not seen.",
+     sections=[("Why it exists", [
+         "Training error is a biased estimate of future error, because part of what the "
+         "model fitted was noise specific to those rows. Only data that played no part in "
+         "fitting gives an unbiased estimate."]),
+       ("A caveat specific to this project", [
+         "The brief's criterion is acc_test − λΩ(f), so the test set is used to choose "
+         "which model the slider shows. Strictly, once a set has been used for selection "
+         "it is no longer a clean estimate of generalisation — the reported accuracy is "
+         "the best of several attempts on that sample.",
+         "The brief asks for it this way and it is the right call pedagogically, since the "
+         "frontier is the object of interest. It is worth knowing that a fully rigorous "
+         "version would select on a validation split and report on a third, untouched set."])],
+     advice="Treat the accuracies here as comparable to each other, not as unbiased estimates of field performance.",
      related=["accuracy", "overfitting"])
 
 _add(slug="overfitting", title="Overfitting", group="Measuring",
-     short="When a model memorises the examples it was shown instead of the pattern behind them.",
-     sections=[("The exam analogy", [
-         "A student who memorises last year's paper aces last year's paper and fails this "
-         "year's. They learned the answers, not the subject."]),
-       ("How to spot it here", [
-         "Give a tree more leaves and its accuracy on the training birds keeps climbing "
-         "towards perfect while its accuracy on held-back birds stops improving. That gap "
-         "is the memorising."])],
-     advice="This is the whole reason for penalising complexity at all.",
-     related=["lambda", "test-set", "leaves"])
+     short="Fitting the noise in the training data rather than the pattern.",
+     sections=[("What happens", [
+         "As a model gains capacity, training error falls monotonically towards zero while "
+         "test error falls, reaches a minimum, and then rises. The rise is the model "
+         "memorising particulars that do not recur.",
+         "The decomposition usually quoted is that expected error splits into bias², "
+         "variance and irreducible noise. More capacity lowers bias and raises variance; "
+         "the minimum sits where the two trade off."]),
+       ("How you see it here", [
+         "Grow the tree and watch training accuracy climb to 1.0 while test accuracy "
+         "plateaus or dips. The gap between the two curves is the overfitting."])],
+     advice="A training accuracy of exactly 1.0 on 333 rows is a warning, not an achievement.",
+     related=["tree", "test-set", "complexity"])
 
-_add(slug="counterfactual", title="Counterfactual", group="Explaining a prediction",
-     short="The smallest change that would have made the model say something else.",
+_add(slug="counterfactual", title="Counterfactual explanation", group="Counterfactuals",
+     short="The smallest change to an example that flips the model's prediction to a chosen class.",
      sections=[("The question it answers", [
-         "Not \"why did it say Adelie\" but \"what would have had to be different for it to "
-         "say Chinstrap\". That is usually the more useful question, because it is the one "
-         "you could act on."]),
-       ("How they are found", [
-         "Thousands of slightly altered penguins are generated around the real one, the "
-         "model is asked about each, and the ones that get the answer you wanted are ranked "
-         "by how little had to change."])],
-     advice="Prefer the ones that change one measurement; they are the readable answers.",
-     related=["mad", "noising"])
+         "Lecture 3 frames it as what a person actually asks after an adverse automated "
+         "decision: what could I have done differently? The canonical example is a loan "
+         "refusal answered with “you would have been approved with €10,000 more income”.",
+         "Here the same question is asked of a penguin: what would have to change about "
+         "this bird for the model to call it a Gentoo?"]),
+       ("The formal version", [
+         "Wachter et al. pose it as a minimisation balancing achieving the target class "
+         "against staying close to the original point,",
+         Math("argmin_{x′}  λ ( f̂(x′) − y′ )²  +  d(x, x′)"),
+         "The first term demands the desired outcome, the second demands proximity, and λ "
+         "sets the exchange rate between them."]),
+       ("What is implemented here", [
+         "Rather than optimising, this project samples: draw many perturbed points around "
+         "x, keep those the model assigns to the target class, and rank them by distance. "
+         "It is easier to reason about and easier to make honest, at the cost of needing "
+         "enough samples to find anything."]),
+       ("An important limitation", [
+         "A counterfactual can be valid and useless. “You would be a Gentoo if you had "
+         "hatched on another island” is true of the model and impossible in fact. The "
+         "literature calls this actionability, and a distance function alone cannot "
+         "capture it."])],
+     advice="Read the list as “nearest neighbours on the other side of the boundary”, not as advice.",
+     related=["mad", "noising", "tree"])
 
-_add(slug="mad", title="MAD-weighted distance", group="Explaining a prediction",
-     short="A way of measuring how big a change is when the things changing are in different units.",
-     sections=[("The problem", [
-         "Is 200 grams of body mass a bigger change than 2 millimetres of bill length? In "
-         "raw numbers 200 dwarfs 2, but that is only because grams are small units."]),
-       ("The fix", [
-         "Divide each change by how much that measurement normally varies between penguins "
-         "— its median absolute deviation. Then a change counts as large only if it is "
-         "large for that measurement."]),
-       ("Categories", [
-         "An island is not 0.4 of another island, so a change of category counts as one "
-         "unit and no change counts as zero."])],
-     advice="It is what ranks the counterfactuals; lower is a smaller ask.",
-     related=["counterfactual", "noising"])
+_add(slug="mad", title="MAD-weighted L¹ distance", group="Counterfactuals",
+     short="A distance that measures each feature's change in units of that feature's own spread.",
+     sections=[("Why a plain distance fails", [
+         "Body mass runs to thousands of grams; bill depth spans a few millimetres. Under "
+         "an unweighted L¹ or L² distance a 500 g change looks larger than a 2 mm change, "
+         "when in penguin terms the second may be the more drastic."]),
+       ("The distance used", [
+         Math("d(x, x′) = Σⱼ |xⱼ − x′ⱼ| ⁄ MADⱼ"),
+         "Each change is divided by how much that feature normally varies, so the sum is "
+         "in comparable units across features."]),
+       ("Median absolute deviation", [
+         Math("MADⱼ = medᵢ | x⁽ⁱ⁾ⱼ − medₗ x⁽ˡ⁾ⱼ |"),
+         "The median of the absolute deviations from the median. Replace both medians by "
+         "means and the L¹ by an L², and you recover the sample variance — lecture 3 draws "
+         "exactly this comparison.",
+         "The reason for the median is robustness. A single absurd value inflates a "
+         "standard deviation substantially and barely moves the MAD. An inflated scale in "
+         "the denominator would make real changes in that feature look negligible."])],
+     advice="MAD is computed on the training data once and held fixed; it describes the dataset, not the example.",
+     related=["counterfactual", "scaling", "noising"])
 
-_add(slug="noising", title="How the alternatives are generated", group="Explaining a prediction",
-     short="Numbers get nudged; categories get swapped, because there is nothing in between two islands.",
-     sections=[("Two kinds of feature", [
-         "A bill length can be nudged slightly. An island cannot — there is no value "
-         "halfway between Biscoe and Dream — so it either changes or it does not.",
-         "Each generated penguin leaves most categories alone and, when it does change one, "
-         "picks a replacement from what real penguins actually have."]),
-       ("One more choice", [
-         "Each attempt is allowed to alter only some of the four measurements, chosen at "
-         "random. Without that, every answer changes all four slightly, and \"adjust "
-         "everything a bit\" is useless as advice."])],
-     advice="This is why the best counterfactuals name one or two things, not seven.",
+_add(slug="noising", title="Noising categorical features", group="Counterfactuals",
+     short="Categorical features cannot be nudged, so they are resampled instead.",
+     sections=[("Why a nudge is meaningless", [
+         "The sampling procedure asks for points near x. For a numeric feature that is "
+         "clear: a bill 2 mm longer is a nearby bill.",
+         "For island ∈ {Torgersen, Biscoe, Dream} there is no nearby island. There is no "
+         "value between Biscoe and Dream, no ordering, and no arithmetic. Adding Gaussian "
+         "noise to a one-hot encoding produces 0.3 of an island, which is not a penguin "
+         "and is a point the model has never seen anything like."]),
+       ("What is done instead", [
+         "The perturbation becomes a different kind of operation — a replacement applied "
+         "with some probability p, drawing the new level from the empirical distribution "
+         "of that feature rather than uniformly.",
+         "Both choices matter. Drawing from the empirical distribution keeps proposals "
+         "realistic, since rare combinations are proposed rarely. Applying it only with "
+         "probability p keeps most draws close to x, which is the point of local sampling; "
+         "resampling every categorical feature every time would scatter the proposals."]),
+       ("Binary and integer features", [
+         "A binary feature is the two-level case of the same rule. Integers that are really "
+         "labels — a year of observation, say — are better treated as categorical than as "
+         "numbers, since the distance between 2007 and 2009 is not meaningful in the way "
+         "two millimetres is."])],
+     advice="If no counterfactual is found, widen the search — more samples, or a larger variance — rather than accepting that none exists.",
      related=["counterfactual", "mad"])
 
-_add(slug="pdp", title="Partial dependence", group="What a feature does",
-     short="Force every penguin to the same bill length, ask the model, and average the answers.",
-     sections=[("How it is built", [
-         "Pick a value. Pretend every bird in the data had exactly that bill length, leave "
-         "everything else alone, and average what the model says. Repeat across the range."]),
-       ("Its weakness", [
-         "Flipper length and body mass go together in real penguins. Setting a flipper to "
-         "230 mm while leaving body mass alone asks the model about an animal that does not "
-         "exist, and the curve is an average over impossible birds as well as real ones."])],
-     advice="Compare it with the ALE curve; where they disagree, the ALE is the safer read.",
+_add(slug="pdp", title="Partial dependence plot (PDP)", group="Feature effects",
+     short="The average predicted probability as one feature is swept, holding the others at their observed values.",
+     sections=[("The definition", [
+         "Split the features into the one of interest, A, and the rest, B. The partial "
+         "dependence is the expectation of the model output over the marginal distribution "
+         "of B,"]),
+       ("Formally", [
+         Math("PD_f(x_A) = E_{x_B ∼ D|B} [ f(x_A, x_B) ]"),
+         "estimated by the obvious average over the dataset,",
+         Math("PD̂_f(v) = (1/n) Σᵢ f(v, x_B⁽ⁱ⁾)"),
+         "In words: pin the feature to v everywhere, leave every other feature as it "
+         "actually is, predict, average. Repeat across a grid of v."]),
+       ("The problem", [
+         "The expectation is over the marginal distribution of B, which ignores that B "
+         "depends on A. Lecture 3's example is apartment price: the PDP for size evaluates "
+         "the model at 30 m² on every row, including rows with eight rooms.",
+         "The model answers, because models always answer, and the answer is an "
+         "extrapolation into a region with no data. Those answers are then averaged in "
+         "with the sensible ones."]),
+       ("In this dataset", [
+         "Flipper length and body mass are strongly correlated — larger birds are larger "
+         "everywhere. The PDP for flipper length therefore asks the model about penguins "
+         "with 230 mm flippers and a 3,000 g body, which do not exist."])],
+     advice="Compare the PDP against the ALE curve; where they diverge is where correlation was distorting it.",
      related=["ale", "correlation"])
 
-_add(slug="ale", title="Accumulated local effects", group="What a feature does",
-     short="Like partial dependence, but only ever asks the model about birds that could exist.",
-     sections=[("How it is built", [
-         "Split the range into bands. Inside each band use only the birds whose own bill "
-         "length falls in that band, see how much the answer shifts across the band, and "
-         "add those shifts up along the range."]),
-       ("What you get and give up", [
-         "Nothing impossible is ever constructed. The price is that the curve shows change "
-         "relative to a typical bird rather than an absolute probability, so it is centred "
-         "on zero."]),
-       ("Two ways of computing it", [
-         "For logistic regression the slope can be written down exactly. A tree is flat "
-         "between its split points, so it has no slope to speak of and the shift has to be "
-         "measured across each band instead. The page says which was used."])],
-     advice="Steps in the curve for a tree are its split points; that is the correct shape.",
-     related=["pdp", "tree", "correlation"])
+_add(slug="ale", title="Accumulated local effects (ALE)", group="Feature effects",
+     short="Averages the model's local slope within narrow bins, then accumulates — so it never evaluates unrealistic combinations.",
+     sections=[("The idea", [
+         "Instead of asking for the model's value at an arbitrary combination, ask for its "
+         "rate of change, using only points that are actually in that neighbourhood. Then "
+         "add those local changes up across the range."]),
+       ("Formally", [
+         Math("ALE_f(x_A) = ∫ E_{x_B | z_A} [ ∂f(z_A, x_B) ⁄ ∂z_A ] dz_A  −  C"),
+         Aside("C is chosen so the curve has mean zero, which fixes the otherwise arbitrary constant of integration."),
+         "Conditioning on z_A keeps the data realistic, as an M-plot does. Taking a "
+         "derivative removes the contribution of whatever is correlated with A, which an "
+         "M-plot cannot do."]),
+       ("Why M-plots are not the fix", [
+         "The obvious repair to the PDP is to use the conditional distribution E[·|x_A], "
+         "giving an M-plot. It only ever probes realistic points, but it mixes effects: "
+         "when flipper length rises, body mass rises with it, so the curve reflects both. "
+         "Lecture 3 puts it as “they do not isolate the feature effects of x_A alone”."]),
+       ("The derivative", [
+         "For logistic regression the model is differentiable and the softmax derivative "
+         "is available in closed form,",
+         Math("∂P(y=c|x) ⁄ ∂xⱼ = P(y=c|x) · ( w_{c,j} − Σₖ P(y=k|x) w_{k,j} )"),
+         "For a decision tree the prediction is piecewise constant, so the derivative is "
+         "zero almost everywhere and undefined exactly at the split points — where all the "
+         "behaviour is. There the only honest option is a finite difference across bin "
+         "edges. Both routes are implemented and the page states which produced the curve."])],
+     advice="ALE curves are centred at zero, so read them as deviations from the average prediction rather than as probabilities.",
+     related=["pdp", "correlation", "logistic"])
 
-_add(slug="correlation", title="Correlation", group="What a feature does",
-     short="How strongly two measurements move together, from −1 to +1.",
-     sections=[("Reading it", [
-         "Near +1 means when one goes up so does the other. Near 0 means no straight-line "
-         "relationship. Petal-like measurements on penguins are strongly related."]),
-       ("Why it matters here", [
-         "Two measurements that say nearly the same thing make partial dependence "
-         "misleading, and they make a linear model's weights unstable."])],
-     advice="Check it before trusting a partial dependence curve.",
-     related=["pdp", "ale"])
+_add(slug="correlation", title="Correlated features", group="Feature effects",
+     short="When two features move together, effects attributed to one may belong to the other.",
+     sections=[("What it means", [
+         "The Pearson correlation between two features is their covariance divided by the "
+         "product of their standard deviations,",
+         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)  ∈  [−1, 1]"),
+         "In these data flipper length and body mass sit high on this scale: bigger "
+         "penguins have both."]),
+       ("Why it matters for explanations", [
+         "It makes the model under-determined in a specific way. Two nearly collinear "
+         "features can trade weight between them with almost no change in predictions, so "
+         "the coefficients are not stable and should not be read as importances.",
+         "It also breaks the PDP, which constructs combinations the correlation says are "
+         "impossible. ALE exists precisely because of this."])],
+     advice="Check the correlation matrix before reading any feature-effect plot; it tells you which curves to distrust.",
+     related=["pdp", "ale", "coefficient"])
 
-_add(slug="scaling", title="Putting features on the same scale", group="Models",
-     short="Rescaling so a measurement in grams does not drown out one in millimetres.",
-     sections=[("The problem", [
-         "Body mass runs to thousands; bill depth is around fifteen. Any model that weighs "
-         "features against each other would be dominated by body mass purely because its "
-         "numbers are bigger."]),
-       ("What is done", [
-         "Every measurement is shifted and stretched to a comparable range before fitting "
-         "logistic regression. Trees are left alone, because they only ask whether a value "
-         "is above or below a threshold and that does not change."])],
-     advice="Handled automatically; it explains why coefficients are comparable.",
-     related=["coefficient", "logistic"])
+_add(slug="scaling", title="Standardisation", group="Models",
+     short="Rewriting each feature as how many standard deviations it sits from the mean.",
+     sections=[("The transformation", [
+         Math("z = (x − μ) ⁄ σ"),
+         "After it, every feature has mean 0 and standard deviation 1, so a change of 1 "
+         "means the same amount in every feature."]),
+       ("Why it is needed", [
+         "Logistic regression with a penalty is not scale-invariant: the penalty ‖w‖ "
+         "treats all coefficients alike, so a feature measured in grams would be penalised "
+         "differently from the same feature measured in kilograms. Without standardising, "
+         "which features get driven to zero depends on the units they happen to be in.",
+         "Decision trees are unaffected — a threshold test gives the same partition under "
+         "any monotone rescaling — which is why the two model families are treated "
+         "differently here."]),
+       ("A practical point", [
+         "μ and σ must be computed on the training set and then applied unchanged to the "
+         "test set. Computing them over all the data lets information about the test rows "
+         "leak into the fit."])],
+     advice="Standardisation is what makes the coefficients comparable to one another, and so what makes the sparsity measure meaningful.",
+     related=["coefficient", "sparsity", "mad"])
 
 
 def groups():

@@ -24,6 +24,27 @@ class Topic:
     group: str = "General"
 
 
+class Math(str):
+    """A display formula inside a section's paragraph list.
+
+    Subclassing str keeps every existing paragraph a plain string, so nothing
+    else has to change. The template asks for `.is_math`; a plain str has no
+    such attribute and Django resolves that to the empty string, which is
+    falsy -- so the two render differently without any type checking in the
+    template.
+
+    Formulas are written in unicode rather than LaTeX. These pages must render
+    with no network and no JavaScript, which rules out MathJax and KaTeX, and
+    the expressions here are small enough that unicode is honest about them.
+    """
+    is_math = True
+
+
+class Aside(str):
+    """A smaller note under a paragraph -- notation reminders, caveats."""
+    is_aside = True
+
+
 TOPICS = {}
 
 
@@ -33,754 +54,586 @@ def _add(**kw):
 
 
 # --------------------------------------------------------------- the basics --
-_add(
-    slug="feature", title="Feature", group="The basics",
-    short="One column of your table -- a single piece of information the model is allowed to use.",
-    sections=[
-        ("An example", [
-            "If your table is about flowers, the features might be petal length, petal width, "
-            "sepal length and sepal width. Four numbers measured for each flower.",
-            "Features are the clues. The model looks only at these when making a guess.",
-        ]),
-        ("What counts as a feature here", [
-            "Every column except the last one. This app follows the course convention: the last "
-            "column is the thing being predicted, everything before it is a feature.",
-            "Columns that only number the rows (1, 2, 3, 4...) are dropped automatically, because "
-            "a row number tells you nothing about the flower.",
-        ]),
-    ],
-    advice="Nothing to do. Just check the preview table shows the columns you expected.",
-    related=["target", "classification-regression"],
-)
 
-_add(
-    slug="target", title="Target", group="The basics",
-    short="The last column -- the thing you want the model to predict.",
-    sections=[
-        ("An example", [
-            "For the flower table, the target is the species. You know the species for the "
-            "flowers you already have; you want the model to work it out for a new flower from "
-            "the measurements alone.",
-        ]),
-        ("Why the last column", [
-            "It is just a convention so the app knows which column is the answer. If your target "
-            "is not the last column, move it there in a spreadsheet before uploading.",
-        ]),
-    ],
-    advice="Make sure the answer you care about is the rightmost column of your CSV.",
-    related=["feature", "classification-regression"],
-)
+_add(slug="feature", title="Feature", group="The basics",
+     short="One column of your table — a single measured quantity the model may use.",
+     sections=[("What it is", [
+         "In a table of flowers, petal length is a feature and so is sepal width. Each row "
+         "is one example; each column other than the target is one feature.",
+         "The standard notation writes a single example as a vector x ∈ ℝᵈ, where d is the "
+         "number of features, and the whole dataset as a matrix X ∈ ℝⁿˣᵈ with n rows."]),
+       ("Why the choice matters", [
+         "The model sees only these numbers. Anything not in a column is invisible to it — "
+         "which is the point lecture 1 makes about the human hiding in every step: somebody "
+         "decided what to measure, and that decision bounds everything the model can ever "
+         "learn."])],
+     advice="Features must be numeric here. Text columns can only be a target, not an input.",
+     related=["target", "scaling", "correlation"])
 
-_add(
-    slug="classification-regression", title="Classification and regression", group="The basics",
-    short="Classification predicts which category something is. Regression predicts a number.",
-    sections=[
-        ("The difference in one line", [
-            "\"Which species is this flower?\" is classification -- the answer is one of a fixed "
-            "list of options.",
-            "\"How far will this illness progress?\" is regression -- the answer is a number that "
-            "could be anything on a scale.",
-        ]),
-        ("How the app decides", [
-            "It looks at your last column. Words mean classification. Numbers with a lot of "
-            "different values mean regression. Numbers with only a handful of repeated values "
-            "(like 0, 1, 2) usually mean categories written as numbers, so it calls that "
-            "classification.",
-            "It always tells you which it chose, and you can override it when you upload the "
-            "file. Some overrides are impossible -- you cannot do regression on words, because "
-            "there is no sensible answer halfway between two species names.",
-        ]),
-    ],
-    advice="Check the label on the visualise page. If it guessed wrong, upload again and set it "
-           "yourself.",
-    related=["feature", "target"],
-)
+_add(slug="target", title="Target", group="The basics",
+     short="The column you want predicted — by convention here, the last one.",
+     sections=[("What it is", [
+         "Written y. For one example the pair is (x, y): the features and the answer. The "
+         "dataset is D = {(x₁, y₁), …, (xₙ, yₙ)}, which is exactly lecture 1's notation.",
+         "This app follows the brief's convention that the last column of the CSV is the "
+         "target and everything before it is a feature."]),
+       ("What its type decides", [
+         "If y takes a few unordered values it is a classification problem; if it is a "
+         "number on a continuous scale it is regression. That single distinction changes "
+         "which models are available and which scores make sense."])],
+     advice="Put the column you want predicted last, or the app will predict the wrong thing perfectly happily.",
+     related=["classification-regression", "feature"])
 
-_add(
-    slug="model", title="Model", group="The basics",
-    short="The recipe the computer uses to turn your features into a prediction.",
-    sections=[
-        ("What it means", [
-            "A model is a way of making a guess. Different models guess in genuinely different "
-            "ways -- one looks for similar past examples, another asks a series of yes/no "
-            "questions, another draws a line through the data.",
-            "None of them is best in general. Which one suits your data is something you find out "
-            "by trying, which is what this page does.",
-        ]),
-        ("Training", [
-            "Training means showing the model the rows where you already know the answer, so it "
-            "can adjust itself to match them. After training it can be shown a new row and asked "
-            "to guess.",
-        ]),
-    ],
-    advice="Try two or three and compare. The run log keeps the results so you can look back.",
-    related=["knn", "tree", "hyperparameter", "overfitting"],
-)
+_add(slug="classification-regression", title="Classification or regression", group="The basics",
+     short="Predicting which category, or predicting how much.",
+     sections=[("The difference", [
+         "Classification predicts a label from a finite unordered set: which species, spam "
+         "or not. Regression predicts a number where ordering and distance are meaningful: "
+         "disease progression, price.",
+         "Formally the difference is the codomain: 𝒴 = {1,…,K} for classification, 𝒴 = ℝ "
+         "for regression."]),
+       ("Why it cannot be read off the datatype", [
+         "Iris species stored as 1, 2, 3 is still classification — species 3 is not three "
+         "times species 1, and the average of species 1 and 3 is not species 2. A "
+         "temperature stored as text is still regression.",
+         "So any automatic detection is a heuristic. This app uses two signals: whether the "
+         "column is non-numeric, and how many distinct values it holds relative to the "
+         "number of rows. The cutoff grows with √n rather than being fixed, so a "
+         "twelve-class problem in a large table is not mistaken for a small regression."]),
+       ("Why you are told what it guessed", [
+         "Because it can be wrong, and silently. The detected type is always displayed with "
+         "an override available — an automatic choice the user cannot see or change is "
+         "exactly the AutoML failure lecture 1 warns about."])],
+     advice="A text target cannot be forced into regression: there is no arithmetic on strings, and the app will refuse rather than crash.",
+     related=["target", "accuracy", "mse"])
+
+_add(slug="model", title="Model", group="The basics",
+     short="The family of functions the algorithm is allowed to choose from.",
+     sections=[("The formal picture", [
+         "Lecture 1 puts supervised learning in four steps, and the first is choosing a "
+         "hypothesis class",
+         Math("ℋ ⊆ { h : 𝒳 → 𝒴 }"),
+         "the set of functions you are willing to consider. Picking “decision tree” means "
+         "picking ℋ = all trees; picking ridge regression means ℋ = all linear functions."]),
+       ("The remaining three steps", [
+         "Choose a loss ℓ measuring how bad a prediction is; choose a penalty R discouraging "
+         "complicated members of ℋ; then minimise",
+         Math("h* ∈ argmin_{h∈ℋ}  (1/N) Σₙ ℓ(h(xₙ), yₙ)  +  λ R(h)"),
+         "Steps 1 to 3 are human choices. Only step 4 is arithmetic — which is the whole "
+         "argument of the lecture, and of this app."])],
+     advice="Different model families encode different assumptions; trying two and comparing is usually more informative than reasoning about which should win.",
+     related=["knn", "tree", "ridge", "automl"])
 
 # ------------------------------------------------------------------- models --
-_add(
-    slug="knn", title="k-nearest neighbours", group="Models",
-    short="To guess a new case, find the most similar past cases and copy their answer.",
-    sections=[
-        ("How it works", [
-            "Imagine plotting every flower you already know as a dot. A new flower arrives. Find "
-            "the k dots closest to it, and go with whatever most of them are.",
-            "That is the whole idea. There is no clever formula -- it just remembers everything "
-            "and looks things up.",
-        ]),
-        ("What k does", [
-            "k is how many neighbours get a vote. With k = 1 the new flower simply copies the "
-            "single closest one, which makes it very sensitive to one odd example. With k = 25 "
-            "it asks a wide circle, which smooths out oddities but may blur a real boundary.",
-        ]),
-        ("A catch worth knowing", [
-            "\"Closest\" depends on units. If one column is measured in centimetres and another "
-            "in kilometres, the kilometre column would dominate the distance for no good reason. "
-            "This app rescales all the columns to comparable ranges first, automatically.",
-        ]),
-    ],
-    advice="Good first thing to try. It is easy to explain and hard to get badly wrong.",
-    related=["hyperparameter-k", "model", "scaling"],
-)
 
-_add(
-    slug="tree", title="Decision tree", group="Models",
-    short="A flowchart of yes/no questions that ends in an answer.",
-    sections=[
-        ("How it works", [
-            "\"Is the petal shorter than 2.5 cm? If yes, it's a Setosa. If no, is the petal "
-            "narrower than 1.8 cm? If yes...\" and so on until it reaches a verdict.",
-            "The model works out the questions itself, picking at each step the one that best "
-            "separates the remaining examples.",
-        ]),
-        ("Why people like it", [
-            "You can read it. Unlike most models, you can follow exactly why it said what it "
-            "said, which matters a great deal if anyone has to justify the decision.",
-        ]),
-        ("Why it needs watching", [
-            "Left alone, a tree will keep asking questions until it has a rule for every single "
-            "training example -- including the flukes. That is why you cap how deep it goes.",
-        ]),
-    ],
-    advice="Pick this when someone will ask you to explain the model's reasoning.",
-    related=["hyperparameter-depth", "overfitting", "model"],
-)
+_add(slug="knn", title="k-nearest neighbours", group="Models",
+     short="Predicts by looking up the k most similar rows and taking a vote.",
+     sections=[("How it works", [
+         "To classify a new point, find the k training rows closest to it and return the "
+         "majority label. Closeness is Euclidean distance by default,",
+         Math("d(x, x′) = √( Σⱼ (xⱼ − x′ⱼ)² )"),
+         "For regression it averages the neighbours' values instead of voting."]),
+       ("What is unusual about it", [
+         "There is no training. The model is the dataset — all the work happens at "
+         "prediction time, which makes fitting instant and prediction slow. Methods like "
+         "this are called lazy or instance-based learners."]),
+       ("Its weakness", [
+         "It depends entirely on the distance, so it is very sensitive to feature scaling: "
+         "a feature measured in thousands dominates one measured in units regardless of "
+         "which matters. It also degrades in high dimensions, where distances between all "
+         "pairs of points become nearly equal."])],
+     advice="Always standardise the features before using it; without that the distance is measuring units rather than similarity.",
+     related=["hyperparameter-k", "scaling", "model"])
 
-_add(
-    slug="logistic-regression", title="Logistic regression", group="Models",
-    short="Draws a boundary line between the categories and reports how confident it is.",
-    sections=[
-        ("How it works", [
-            "It gives each feature a weight -- how much that feature pushes towards one answer or "
-            "the other -- adds them up, and turns the total into a probability.",
-            "Despite the name it is used for classification, not regression. The name is a "
-            "historical accident that has confused people for decades.",
-        ]),
-        ("What you get from it", [
-            "Because each feature has a weight, you can see which features mattered and in which "
-            "direction. And because the output is a probability, you can tell a confident guess "
-            "from a coin-flip.",
-        ]),
-    ],
-    advice="A sensible default when the categories are roughly separable by a straight boundary.",
-    related=["hyperparameter-c", "model", "scaling"],
-)
+_add(slug="tree", title="Decision tree", group="Models",
+     short="A sequence of yes/no threshold tests ending in an answer.",
+     sections=[("How it works", [
+         "Each node asks whether one feature is below a threshold. Follow the answers down "
+         "to a leaf, which carries the prediction. The algorithm chooses the questions "
+         "itself by searching, at each node, over every feature and threshold for the split "
+         "that best separates the classes.",
+         "The usual measure of separation is Gini impurity,",
+         Math("G = 1 − Σₖ pₖ²"),
+         Aside("pₖ is the proportion of the node's samples in class k. G = 0 when the node is pure."),
+         "and the chosen split maximises the weighted drop in G from parent to children."]),
+       ("Why it is worth knowing", [
+         "It is directly readable — the rules are the model, not a summary of it. It also "
+         "needs no scaling, since a threshold test gives the same partition under any "
+         "monotone rescaling."]),
+       ("Where it fails", [
+         "Left unconstrained it grows until every leaf is pure, memorising individual rows. "
+         "Trees are also unstable: small changes in the data can produce a completely "
+         "different tree with similar accuracy."])],
+     advice="Constrain the depth. An unconstrained tree scores 1.0 on the training set and tells you nothing.",
+     related=["hyperparameter-depth", "overfitting", "model"])
 
-_add(
-    slug="svm", title="Support vector machine (RBF)", group="Models",
-    short="Finds the dividing line that leaves the widest possible gap between the categories.",
-    sections=[
-        ("The idea", [
-            "Of all the lines that separate two groups, it looks for the one with the most "
-            "clearance on both sides -- the boundary that is least likely to be wrong about a "
-            "new point that lands near it.",
-        ]),
-        ("What RBF adds", [
-            "A straight line cannot always separate the groups. RBF lets the boundary curve and "
-            "wrap around clusters, so it can handle shapes a straight line cannot.",
-            "The cost is that you can no longer easily explain the boundary in words.",
-        ]),
-    ],
-    advice="Often accurate, rarely explainable. Worth trying, but check what you give up.",
-    related=["hyperparameter-c", "model"],
-)
+_add(slug="logistic-regression", title="Logistic regression", group="Models",
+     short="A weighted sum of the features, squashed into a probability.",
+     sections=[("How it works", [
+         "Compute a score wᵀx + b, then map it into (0,1) with the logistic sigmoid,",
+         Math("σ(z) = 1 ⁄ (1 + e^{−z})"),
+         "giving P(y = 1 | x) = σ(wᵀx + b). For more than two classes the softmax "
+         "generalises it, producing one probability per class that together sum to one."]),
+       ("Despite the name", [
+         "It is a classification method. The “regression” refers to regressing the "
+         "log-odds — log(p/(1−p)) — on the features, which is linear in x even though the "
+         "probability is not."]),
+       ("Why it is a good default", [
+         "It is fast, it yields calibrated probabilities rather than bare labels, and the "
+         "coefficients are inspectable. It fits a linear decision boundary, so it "
+         "underfits genuinely curved problems — which is often a useful thing to discover "
+         "early."])],
+     advice="Its probabilities are meaningful, so it is a good choice when you need confidence rather than just a label.",
+     related=["hyperparameter-c", "scaling", "model"])
 
-_add(
-    slug="ridge", title="Ridge regression", group="Models",
-    short="Fits a straight-line relationship, while deliberately keeping the numbers modest.",
-    sections=[
-        ("How it works", [
-            "Ordinary linear regression finds the weights that fit your training data as closely "
-            "as possible. Ridge does the same but adds a penalty for large weights, so it prefers "
-            "a slightly worse fit made of smaller, steadier numbers.",
-        ]),
-        ("Why hold it back on purpose", [
-            "When two features say almost the same thing, a plain fit can produce wild weights "
-            "that cancel each other out -- huge positive on one, huge negative on the other. It "
-            "matches the training data and falls apart on anything new. The penalty prevents that.",
-        ]),
-    ],
-    advice="The standard first choice for predicting a number. This is the model from lecture 1.",
-    related=["hyperparameter-alpha", "correlation", "overfitting"],
-)
+_add(slug="svm", title="Support vector machine", group="Models",
+     short="Finds the boundary sitting as far as possible from the nearest points of both classes.",
+     sections=[("The idea", [
+         "Many boundaries separate two classes; the SVM picks the one maximising the margin "
+         "— the distance to the closest training point on either side. Those closest points "
+         "are the support vectors, and they alone determine the boundary; the rest could be "
+         "deleted without changing it."]),
+       ("Soft margins", [
+         "Real data overlaps, so the strict version has no solution. The soft-margin "
+         "formulation allows violations at a price, minimising",
+         Math("(1/2)‖w‖²  +  C Σᵢ ξᵢ"),
+         Aside("ξᵢ measures how far example i intrudes into the margin, and C sets the price of intrusion."),
+         "which is once again lecture 1's shape: a fit term plus a penalty."]),
+       ("The kernel trick", [
+         "The optimisation depends on the data only through inner products between pairs of "
+         "points, so replacing that inner product with a kernel function fits a non-linear "
+         "boundary without ever computing coordinates in the higher-dimensional space."])],
+     advice="Scale your features first; like k-NN, the SVM is defined through distances.",
+     related=["hyperparameter-c", "scaling", "model"])
+
+_add(slug="ridge", title="Ridge regression", group="Models",
+     short="Linear regression with a penalty on the size of the coefficients.",
+     sections=[("The model", [
+         "Predict y ≈ wᵀx, and fit by minimising squared error plus a penalty on ‖w‖² — "
+         "which is the worked example running through lecture 1:",
+         Math("w* ∈ argmin_w  Σₙ (yₙ − wᵀxₙ)²  +  λ‖w‖²"),
+         "The first term is the loss ℓ(y, y′) = (y − y′)², the second is the penalisation "
+         "R(h_w) = ‖w‖², and λ is the hyperparameter weighting them."]),
+       ("Why penalise at all", [
+         "Ordinary least squares is unstable when features are correlated: the fitted "
+         "coefficients become large and opposite, cancelling each other, and swing wildly "
+         "with small changes in the data. The penalty shrinks them towards zero and "
+         "stabilises the fit.",
+         "Unlike an ℓ₁ penalty, ‖w‖² shrinks coefficients smoothly without ever setting any "
+         "exactly to zero."]),
+       ("The lecture's result", [
+         "On the diabetes dataset the lecture sweeps λ, selects 0.1 and reports a test MSE "
+         "of about 2856 — then points out that the human was present at every step of that "
+         "apparently automatic procedure."])],
+     advice="λ is on a logarithmic scale; sweep it by factors of ten rather than in equal steps.",
+     related=["hyperparameter-alpha", "mse", "model"])
 
 # ----------------------------------------------------------- hyperparameters --
-_add(
-    slug="hyperparameter", title="Hyperparameter (\"values to try\")", group="Settings",
-    short="A setting you choose before training, rather than something the model learns from data.",
-    sections=[
-        ("The cooking analogy", [
-            "The model learns the recipe from your data. The hyperparameter is the oven "
-            "temperature -- you set it beforehand, and it changes how the whole thing turns out.",
-            "Nobody can tell you the right value by looking at it. You find it by trying several "
-            "and seeing which works, which is exactly what the \"values to try\" box is for.",
-        ]),
-        ("Why there is a list, not one number", [
-            "The app trains a separate model for every value in the list and compares them. "
-            "Leave the box empty and it uses a sensible spread; type your own values, separated "
-            "by commas, to look somewhere specific.",
-            "Each model here has one hyperparameter that matters most, and that is the one swept.",
-        ]),
-        ("Almost all of them are the same dial", [
-            "Whatever it is called, it usually controls one thing: how hard the model is allowed "
-            "to chase your training data. Turn it one way and the model stays simple and may miss "
-            "real patterns. Turn it the other and it fits every wobble, including the meaningless "
-            "ones.",
-        ]),
-    ],
-    advice="Leave it empty the first time. Look at the curve, then narrow in if you want to.",
-    related=["overfitting", "cross-validation", "hyperparameter-k", "hyperparameter-c"],
-)
 
-_add(
-    slug="hyperparameter-k", title="k -- the number of neighbours", group="Settings",
-    short="How many similar past cases get a vote when guessing a new one.",
-    sections=[
-        ("What changes as you turn it up", [
-            "k = 1 means the new case copies the single most similar old case. Very responsive, "
-            "and completely at the mercy of one strange example.",
-            "k = 25 means twenty-five cases vote. One odd example cannot swing it, but a small "
-            "genuine group can get outvoted by the crowd around it.",
-        ]),
-        ("Practical notes", [
-            "For two categories, an odd number avoids tied votes.",
-            "k cannot be larger than the number of examples available to learn from. If you ask "
-            "for values that are too big, the app skips them and says so.",
-        ]),
-    ],
-    advice="Somewhere between 3 and 15 suits most datasets. Let the sweep pick.",
-    related=["knn", "hyperparameter", "cross-validation"],
-)
+_add(slug="hyperparameter", title="Hyperparameter", group="Settings",
+     short="A setting fixed before training, which the training procedure cannot learn.",
+     sections=[("The distinction", [
+         "In ridge regression, w is a parameter — found by the minimisation. λ is a "
+         "hyperparameter — fixed beforehand and not learned. Lecture 1 is precise about "
+         "this: “The coefficient λ is a hyperparameter of the algorithm, which is fixed and "
+         "not learned.”"]),
+       ("Why it cannot simply be learned too", [
+         "Because λ controls the penalty for complexity, and the training loss always "
+         "improves as the penalty weakens. Minimising training loss over λ would drive it "
+         "to zero every time.",
+         "The quantity that identifies a good λ cannot be the quantity already being "
+         "minimised — which is exactly why hyperparameters need held-out data and "
+         "parameters do not."])],
+     advice="Every hyperparameter is a human decision the app is making visible rather than hiding.",
+     related=["cross-validation", "validation-curve", "one-se-rule"])
 
-_add(
-    slug="hyperparameter-depth", title="Max depth -- how deep the tree goes", group="Settings",
-    short="The most yes/no questions the tree may ask before it has to commit to an answer.",
-    sections=[
-        ("What changes as you turn it up", [
-            "Depth 1 is a single question. Fast, readable, usually too crude.",
-            "Depth 3 is up to three questions in a row -- eight possible endings. Often plenty.",
-            "Depth 15 can carve out a private rule for nearly every training row. It will look "
-            "perfect on data it has seen and disappoint on anything new.",
-        ]),
-        ("The classic warning sign", [
-            "On the sweep table, watch the \"on training rows\" column climb towards 1.000 while "
-            "the cross-validation column stops improving. Everything past that point is "
-            "memorising, not learning.",
-        ]),
-    ],
-    advice="Shallow is usually enough, and you can read a shallow tree out loud.",
-    related=["tree", "overfitting", "hyperparameter"],
-)
+_add(slug="hyperparameter-k", title="k, the number of neighbours", group="Settings",
+     short="How many nearby rows vote on each prediction.",
+     sections=[("What it controls", [
+         "k = 1 asks the single closest row, which follows the training data exactly and "
+         "reproduces its noise. Large k averages over a wide region and smooths real "
+         "structure away.",
+         "It is a direct capacity control: small k gives a jagged, high-variance boundary; "
+         "large k gives a smooth, high-bias one."]),
+       ("Practical points", [
+         "Odd values avoid ties in binary problems. And k cannot exceed the number of rows "
+         "in a training fold — which is why the app caps the grid at the smallest fold size "
+         "rather than letting the fit fail."])],
+     advice="Sweep k and look for the plateau rather than the single best point; the plateau is the honest region.",
+     related=["knn", "validation-curve", "overfitting"])
 
-_add(
-    slug="hyperparameter-c", title="C -- how hard the model tries", group="Settings",
-    short="How much the model is allowed to contort itself to get every training example right.",
-    sections=[
-        ("Careful -- it runs backwards", [
-            "Small C means a simpler, more cautious model that accepts getting some training "
-            "examples wrong.",
-            "Large C means the model strains to get every training example right, which usually "
-            "means it has started fitting noise.",
-            "It feels inverted because C is technically the inverse of a penalty. Most people have "
-            "to look this up more than once.",
-        ]),
-        ("Why the values jump by tens", [
-            "The default list goes 0.001, 0.01, 0.1, 1, 10, 100 rather than 1, 2, 3. What matters "
-            "is the order of magnitude, not small steps -- the difference between 1 and 2 is "
-            "negligible, the difference between 1 and 100 is not.",
-        ]),
-    ],
-    advice="Start with the default spread. C = 1 is a reasonable answer surprisingly often.",
-    related=["logistic-regression", "svm", "hyperparameter", "overfitting"],
-)
+_add(slug="hyperparameter-depth", title="Maximum tree depth", group="Settings",
+     short="How many questions the tree may ask before it must answer.",
+     sections=[("What it controls", [
+         "Depth caps the length of any root-to-leaf path. A tree of depth d has at most 2^d "
+         "leaves, so depth constrains complexity only loosely — a depth-5 tree may have "
+         "anywhere from 6 to 32 leaves."]),
+       ("What happens without it", [
+         "The tree splits until every leaf is pure. Training accuracy reaches 1.0 and the "
+         "model has effectively memorised the table.",
+         "On iris, cross-validated accuracy is statistically flat from depth 3 to 14 while "
+         "training accuracy climbs to 1.0 — a textbook picture of capacity buying training "
+         "score and nothing else."])],
+     advice="Depth 3 to 5 is usually enough for small tabular problems; deeper is rarely better and always less readable.",
+     related=["tree", "overfitting", "one-se-rule"])
 
-_add(
-    slug="hyperparameter-alpha", title="Alpha -- the penalty on large weights", group="Settings",
-    short="How firmly the model is pushed towards small, cautious numbers.",
-    sections=[
-        ("What changes as you turn it up", [
-            "Alpha near zero means no restraint: fit the training data as closely as possible.",
-            "Large alpha means heavy restraint: keep every weight small, even at the cost of a "
-            "worse fit. Push it far enough and the model barely reacts to the features at all.",
-            "This is the opposite direction to C. Larger alpha is a simpler model; larger C is a "
-            "more complicated one.",
-        ]),
-        ("Where you have seen it", [
-            "This is the lambda from lecture 1 -- the same dial, a different letter.",
-        ]),
-    ],
-    advice="The default spread covers everything from no restraint to heavy. Let the sweep choose.",
-    related=["ridge", "hyperparameter", "overfitting"],
-)
+_add(slug="hyperparameter-c", title="C, the regularisation strength", group="Settings",
+     short="How much the model is allowed to contort itself to fit the training data.",
+     sections=[("What it means", [
+         "C is an inverse penalty: large C means little regularisation and a model that "
+         "tries hard to classify every training point correctly; small C means a heavier "
+         "penalty and a simpler, smoother boundary.",
+         "Both logistic regression and the SVM use it. Note the inversion relative to λ — "
+         "roughly C ≈ 1/λ — which is a common source of confusion when moving between "
+         "formulations."]),
+       ("The trade-off", [
+         "Large C tends to overfit; small C tends to underfit. It is usually swept "
+         "logarithmically, over values like 0.01, 0.1, 1, 10, 100."])],
+     advice="Because C is inverse, a larger value means less regularisation — the opposite of what the name suggests.",
+     related=["logistic-regression", "svm", "overfitting"])
 
-_add(
-    slug="seed", title="Random seed", group="Settings",
-    short="A number that makes the random shuffling repeatable.",
-    sections=[
-        ("Why there is randomness at all", [
-            "The rows have to be shuffled before being split into training and test groups, "
-            "otherwise any ordering in your file would bias the result.",
-            "The seed fixes that shuffle. Run it twice with the same seed and you get identical "
-            "results -- which is what makes a result checkable by someone else.",
-        ]),
-        ("A genuinely useful trick", [
-            "Run the same settings with three or four different seeds. If the answer barely "
-            "moves, it is real. If it swings around, your dataset is too small to support the "
-            "conclusion you were about to draw from it.",
-        ]),
-    ],
-    advice="Leave it at 0. Change it when you want to check a result is not a fluke.",
-    related=["test-set", "cross-validation", "standard-error"],
-)
+_add(slug="hyperparameter-alpha", title="α, the ridge penalty", group="Settings",
+     short="How strongly the coefficients are pulled towards zero.",
+     sections=[("What it does", [
+         "It is the λ of lecture 1's ridge example — scikit-learn calls it alpha. At α = 0 "
+         "you get ordinary least squares; as α grows, coefficients shrink towards zero and "
+         "the fitted function flattens.",
+         "In the limit of very large α every coefficient is zero and the model predicts the "
+         "mean of y for every input."]),
+       ("Choosing it", [
+         "There is no natural scale, so sweep logarithmically. The lecture's diabetes "
+         "example lands on 0.1."])],
+     advice="Ridge is not scale-invariant, so standardise before sweeping α or the penalty falls unevenly across features.",
+     related=["ridge", "scaling", "cross-validation"])
+
+_add(slug="seed", title="Random seed", group="Settings",
+     short="Fixes the randomness, so the same run gives the same answer.",
+     sections=[("Where randomness enters", [
+         "Splitting rows into training and test, shuffling before folding, and the internals "
+         "of some solvers. All of it derives from a pseudo-random generator, and fixing its "
+         "starting state makes the whole pipeline reproducible."]),
+       ("Why it matters more than it sounds", [
+         "Two runs differing only in seed can give visibly different accuracies on a small "
+         "dataset. That variation is not a bug — it is the sampling noise in your estimate, "
+         "and seeing it is a useful reminder that a single number is not a measurement.",
+         "For reporting, fixing the seed makes results checkable; for judging stability, "
+         "varying it is more informative."])],
+     advice="Change the seed a few times and watch the accuracy move; that spread is the honest error bar on a single split.",
+     related=["cross-validation", "standard-error"])
 
 # ------------------------------------------------------- splitting & scoring --
-_add(
-    slug="test-set", title="Test set", group="Measuring",
-    short="Rows locked away and never shown to the model, kept to check it honestly at the end.",
-    sections=[
-        ("Why bother", [
-            "Any model can recite the examples it was trained on. That proves nothing. The only "
-            "meaningful question is how it does on cases it has never seen.",
-            "So some rows are set aside at the start -- 25% by default -- and the model is not "
-            "allowed near them until everything else is decided.",
-        ]),
-        ("The trap this avoids", [
-            "If you use the test rows to help choose your settings, the final score is flattering "
-            "rather than honest: you have quietly tuned towards those exact rows.",
-            "This app chooses the hyperparameter using cross-validation inside the training rows "
-            "only. The test rows are touched once, at the very end.",
-        ]),
-        ("How big", [
-            "Too small and the score is noisy. Too large and the model has little left to learn "
-            "from. Between 20% and 30% is the usual compromise.",
-        ]),
-    ],
-    advice="25% is a good default. Lower it if your dataset is small.",
-    related=["cross-validation", "overfitting", "seed"],
-)
 
-_add(
-    slug="cross-validation", title="Cross-validation and folds", group="Measuring",
-    short="Testing several times on different slices instead of once, then averaging.",
-    sections=[
-        ("How it works", [
-            "Split the training rows into 5 equal groups -- the folds. Train on 4 of them, check "
-            "against the 5th. Repeat five times so every group gets a turn being the one held "
-            "back. Average the five scores.",
-        ]),
-        ("Why not just test once", [
-            "One test can be lucky. Maybe the held-back rows happened to be easy. Five tests are "
-            "much harder to fluke, and the spread between them tells you how much to trust the "
-            "average -- that is the standard error.",
-        ]),
-        ("Keeping the folds fair", [
-            "Each fold is built to contain roughly the same mix of categories as the whole "
-            "dataset. Without that, one fold could end up with hardly any of a rare category and "
-            "the score would be measuring the shuffle rather than the model.",
-        ]),
-    ],
-    advice="5 folds is standard. Use fewer if your dataset is small and it complains.",
-    related=["test-set", "standard-error", "one-se-rule"],
-)
+_add(slug="test-set", title="Training and test sets", group="Measuring",
+     short="Rows held back from fitting, used to estimate performance on unseen data.",
+     sections=[("Why the split exists", [
+         "Error measured on the data used for fitting is systematically optimistic, because "
+         "part of what the model learned was the noise particular to those rows. Only data "
+         "that played no part in fitting gives an unbiased estimate."]),
+       ("The three roles", [
+         "Training data fits the parameters. Validation data chooses the hyperparameters. "
+         "Test data estimates final performance and is looked at once.",
+         "The moment you choose something using the test set, it has participated in fitting "
+         "and is no longer a test set. Lecture 1's worked example does exactly this — it "
+         "picks λ by lowest test MSE — which makes the reported 2856 optimistic by an "
+         "unknown amount. This app selects on cross-validation folds instead."])],
+     advice="If you tune, look, adjust and look again, you no longer have a test set — you have a second validation set.",
+     related=["cross-validation", "overfitting", "accuracy"])
 
-_add(
-    slug="accuracy", title="Accuracy", group="Measuring",
-    short="Of all the predictions made, the fraction that were right.",
-    sections=[
-        ("The arithmetic", [
-            "Count the correct predictions, divide by the total. 33 right out of 36 is 33/36 = "
-            "0.9167, usually read as 91.67%.",
-            "That is genuinely all there is to it, which is why it is the default.",
-        ]),
-        ("When it lies to you", [
-            "Suppose 99 out of 100 emails are not spam. A model that says \"not spam\" every "
-            "single time, without looking, scores 99% accuracy. It is useless -- it never catches "
-            "any spam at all -- but the number looks superb.",
-            "Whenever one category is much larger than the others, accuracy flatters a model that "
-            "simply ignores the small ones.",
-        ]),
-    ],
-    advice="Fine when your categories are roughly equal in size. Check the class balance table; "
-           "if it is lopsided, look at macro F1 instead.",
-    related=["macro-f1", "confusion-matrix", "class-balance"],
-)
+_add(slug="cross-validation", title="k-fold cross-validation", group="Measuring",
+     short="Rotating which slice is held out, so every row is used for both fitting and evaluation.",
+     sections=[("The procedure", [
+         "Cut the training data into k equal parts. For each fold i: train on the other "
+         "k−1 parts and score on part i. Average the k scores.",
+         "Every row trains k−1 times and validates exactly once."]),
+       ("What it buys", [
+         "Two things. The estimate uses all the data rather than wasting a fixed slice; and "
+         "because it is an average of k measurements it is less noisy than a single split, "
+         "roughly by a factor of √k.",
+         "More usefully, the k individual scores give you a spread — so you can compute a "
+         "standard error and know how uncertain the estimate is. A single split gives one "
+         "number and no way to judge it."]),
+       ("Stratification", [
+         "For classification, each fold should preserve the class proportions of the whole "
+         "dataset. Iris has exactly 50 of each species; a careless split can give one fold "
+         "20 setosa and another 5, so the folds measure different problems and averaging "
+         "them means less. This app deals each class's shuffled indices round-robin into the "
+         "folds, which keeps the proportions right by construction."])],
+     advice="k = 5 or 10 is standard. Larger k costs more compute and gives diminishing returns.",
+     related=["standard-error", "one-se-rule", "test-set"])
 
-_add(
-    slug="macro-f1", title="Macro F1", group="Measuring",
-    short="Scores each category separately and averages them, so small categories count as much "
-          "as large ones.",
-    sections=[
-        ("Two questions per category", [
-            "For each category the model is asked two things.",
-            "When it said \"cat\", how often was it actually a cat? That is precision -- how much "
-            "you can trust it when it makes that call.",
-            "Of all the real cats, how many did it find? That is recall -- how much it misses.",
-            "You can cheat either one alone. Say \"cat\" once, on the most obvious cat, and "
-            "precision is perfect while recall is dreadful. Say \"cat\" about everything and "
-            "recall is perfect while precision collapses.",
-        ]),
-        ("F1 combines them", [
-            "F1 is a single number that is only high when both precision and recall are high. If "
-            "either one is poor, F1 is poor. It cannot be gamed by going all-in on one.",
-        ]),
-        ("What \"macro\" adds", [
-            "It means work out F1 for each category separately, then take a plain average -- "
-            "every category counted equally, no matter how many rows it has.",
-            "That is the whole point. In the spam example, the ignored category drags the average "
-            "right down, and the useless model finally scores as badly as it deserves.",
-        ]),
-    ],
-    advice="Use this when some categories are much rarer than others, or when getting the rare "
-           "ones right is what you actually care about.",
-    related=["accuracy", "confusion-matrix", "class-balance"],
-)
+_add(slug="accuracy", title="Accuracy", group="Measuring",
+     short="The fraction of predictions that are correct.",
+     sections=[("Definition", [
+         Math("acc = (1/n) Σᵢ 1[ ŷᵢ = yᵢ ]"),
+         Aside("1[·] is 1 when the condition holds and 0 otherwise."),
+         "Easy to read and easy to misuse."]),
+       ("When it misleads", [
+         "With imbalanced classes it is dominated by the majority. If 95% of rows are one "
+         "class, predicting that class always scores 0.95 while being worthless — the "
+         "accuracy paradox.",
+         "Accuracy also treats every error alike, which is rarely true: in screening, a "
+         "missed case and a false alarm have very different costs, and no algorithm can know "
+         "the ratio."])],
+     advice="Always read accuracy beside the class balance, and prefer macro-F1 when the classes are uneven.",
+     related=["class-balance", "macro-f1", "confusion-matrix"])
 
-_add(
-    slug="r-squared", title="R squared", group="Measuring",
-    short="How much of the variation in the answer the model manages to explain. 1.0 is perfect.",
-    sections=[
-        ("What the number means", [
-            "Compare your model against the laziest possible one: always guess the average, "
-            "ignoring the features entirely.",
-            "R squared of 0 means your model is no better than that lazy guess. 1.0 means it "
-            "predicts every case exactly. 0.49 means it explains about half of the variation.",
-            "It can go negative, which means the model is doing actively worse than always "
-            "guessing the average. That is a signal something is wrong.",
-        ]),
-        ("Why it is convenient", [
-            "It is on the same 0-to-1 scale whatever you are predicting, so you can compare "
-            "across different problems. Mean squared error cannot do that.",
-        ]),
-    ],
-    advice="Good for a quick sense of whether the model is working at all. Use MAE when you need "
-           "to know the size of the error in real units.",
-    related=["mse", "mae"],
-)
+_add(slug="macro-f1", title="Macro-averaged F1", group="Measuring",
+     short="Averages per-class performance, so small classes count as much as large ones.",
+     sections=[("Building it up", [
+         "For one class, precision is the share of predictions for that class that were "
+         "right; recall is the share of that class's true members that were found. F1 is "
+         "their harmonic mean,",
+         Math("F₁ = 2 · (precision · recall) ⁄ (precision + recall)"),
+         "The harmonic mean is used because it punishes imbalance: a classifier with "
+         "precision 1.0 and recall 0.1 has F1 ≈ 0.18, not 0.55."]),
+       ("The macro average", [
+         "Compute F1 separately for each class and average with equal weight. A rare class "
+         "then contributes as much as a common one, which is exactly what accuracy fails to "
+         "do. Micro-averaging, by contrast, pools all predictions first and behaves like "
+         "accuracy."])],
+     advice="Use it as the default score whenever any class is much rarer than the others.",
+     related=["accuracy", "class-balance", "confusion-matrix"])
 
-_add(
-    slug="mse", title="Mean squared error", group="Measuring",
-    short="The average of the squared misses. Lower is better.",
-    sections=[
-        ("The arithmetic", [
-            "For each case, take the difference between the prediction and the truth, square it, "
-            "and average those across all cases.",
-            "Squaring does two things: it stops overestimates and underestimates cancelling out, "
-            "and it punishes one big mistake far more than several small ones.",
-        ]),
-        ("Why it is hard to read", [
-            "The squaring leaves the number in squared units. If you are predicting a score out "
-            "of 300, an MSE of 2889 is not 2889 points off -- the square root, about 54, is "
-            "closer to the typical miss.",
-            "Use it to compare two models on the same data. Do not try to interpret it on its own.",
-        ]),
-    ],
-    advice="Choose this when a single large error would be much worse than several small ones.",
-    related=["mae", "r-squared"],
-)
+_add(slug="r-squared", title="R², coefficient of determination", group="Measuring",
+     short="The share of variance in the target the model accounts for.",
+     sections=[("Definition", [
+         Math("R² = 1 − Σᵢ (yᵢ − ŷᵢ)² ⁄ Σᵢ (yᵢ − ȳ)²"),
+         "The numerator is the model's squared error; the denominator is the error of "
+         "always predicting the mean. So R² = 1 is perfect, R² = 0 is no better than the "
+         "mean, and negative values mean worse than the mean — which is possible on held-out "
+         "data and is a genuine signal, not a bug."]),
+       ("How to read it", [
+         "It is unitless, so it compares across datasets in a way MSE cannot. But it says "
+         "nothing about whether the errors are large in practical terms — only whether they "
+         "are small relative to the spread of y."])],
+     advice="Read R² together with MAE, which tells you the size of a typical error in real units.",
+     related=["mse", "mae", "classification-regression"])
 
-_add(
-    slug="mae", title="Mean absolute error", group="Measuring",
-    short="The average size of the miss, in the original units. Lower is better.",
-    sections=[
-        ("The arithmetic", [
-            "For each case, how far off was the prediction, ignoring whether it was too high or "
-            "too low. Average those.",
-            "An MAE of 44 means the model is off by about 44 on average -- in whatever your "
-            "target is measured in. That is the plainest error figure available.",
-        ]),
-        ("How it differs from MSE", [
-            "MAE treats a miss of 10 as exactly twice as bad as a miss of 5. MSE treats it as "
-            "four times as bad.",
-            "So MAE is calmer about outliers. If a handful of cases are wildly wrong, MAE will "
-            "shrug where MSE will be dominated by them.",
-        ]),
-    ],
-    advice="The easiest score to explain to someone else. Start here if you want a number you can "
-           "quote in a sentence.",
-    related=["mse", "r-squared"],
-)
+_add(slug="mse", title="Mean squared error", group="Measuring",
+     short="The average squared gap between prediction and truth.",
+     sections=[("Definition", [
+         Math("MSE = (1/n) Σᵢ (yᵢ − ŷᵢ)²"),
+         "It is the loss ℓ(y, y′) = (y − y′)² from lecture 1's ridge example, averaged over "
+         "the data."]),
+       ("Why squared", [
+         "Squaring makes errors positive and penalises large ones disproportionately: being "
+         "off by 10 counts a hundred times as much as being off by 1. It is also smooth and "
+         "differentiable, which is what makes least squares solvable in closed form.",
+         "The cost is sensitivity to outliers — one wild point can dominate the total."]),
+       ("Units", [
+         "MSE is in the square of the target's units, which is why the square root (RMSE) "
+         "is often reported instead. The lecture's diabetes figure of 2856 is an MSE."])],
+     advice="MSE compares models on one dataset; it cannot be compared across datasets with different scales.",
+     related=["mae", "r-squared", "ridge"])
 
-_add(
-    slug="confusion-matrix", title="Confusion matrix", group="Measuring",
-    short="A table of what was true against what the model said, so you can see which mistakes it "
-          "makes.",
-    sections=[
-        ("How to read it", [
-            "Each row is a true category, each column is what the model predicted. The diagonal "
-            "is where they agree -- the correct answers.",
-            "Everything off the diagonal is a mistake, and its position tells you what kind. A "
-            "number in the Versicolor row under the Virginica column means: two flowers were "
-            "really Versicolor and the model called them Virginica.",
-        ]),
-        ("Why it beats a single score", [
-            "\"91% accurate\" does not tell you whether the 9% is spread evenly or all falling on "
-            "one category.",
-            "Lecture 1 makes this point with aircraft inspection: a false alarm costs an "
-            "unnecessary check, a miss endangers everyone on board. Same accuracy, wildly "
-            "different consequences. Only this table shows you which you are getting.",
-        ]),
-    ],
-    advice="Always glance at it. It takes five seconds and it is where the surprises live.",
-    related=["accuracy", "macro-f1"],
-)
+_add(slug="mae", title="Mean absolute error", group="Measuring",
+     short="The average size of the error, in the target's own units.",
+     sections=[("Definition", [
+         Math("MAE = (1/n) Σᵢ |yᵢ − ŷᵢ|"),
+         "Directly interpretable: an MAE of 3 means the typical prediction is out by about "
+         "3 units of whatever y measures."]),
+       ("Versus MSE", [
+         "MAE treats all errors proportionally, so it is far less sensitive to outliers. "
+         "The trade-off is that it is not differentiable at zero, which historically made it "
+         "harder to optimise.",
+         "There is also a statistical difference worth knowing: minimising squared error "
+         "predicts the conditional mean, while minimising absolute error predicts the "
+         "conditional median."])],
+     advice="Report MAE alongside R²; one gives the scale of the error, the other its significance.",
+     related=["mse", "r-squared"])
+
+_add(slug="confusion-matrix", title="Confusion matrix", group="Measuring",
+     short="A table of what was predicted against what was true.",
+     sections=[("How to read it", [
+         "Rows are true classes, columns are predicted ones. The diagonal holds correct "
+         "predictions; everything off it is a mistake, and its position says which mistake.",
+         "For binary problems the four cells have names — true positive, false positive, "
+         "false negative, true negative — and every scalar metric here is some ratio of "
+         "them."]),
+       ("Why it is worth looking at", [
+         "A single accuracy figure cannot tell you whether the model confuses two similar "
+         "classes systematically or errs uniformly. Those call for completely different "
+         "fixes, and only the matrix distinguishes them."])],
+     advice="Look at the matrix before deciding a model is bad; often only one pair of classes is the problem.",
+     related=["accuracy", "macro-f1", "class-balance"])
+
+_add(slug="overfitting", title="Overfitting", group="Ideas worth knowing",
+     short="Learning the noise in the training data rather than the pattern.",
+     sections=[("What happens", [
+         "As capacity grows, training error falls monotonically toward zero while test error "
+         "falls, bottoms out, then rises. The rise is the model memorising particulars that "
+         "will not recur."]),
+       ("The decomposition", [
+         "Expected squared error splits into three parts,",
+         Math("E[(y − ŷ)²] = bias² + variance + irreducible noise"),
+         "More capacity lowers bias and raises variance. The best model sits where the sum "
+         "is smallest, which is generally not where either term alone is smallest."]),
+       ("Seeing it here", [
+         "The validation curve plots both training and validation score. The gap between "
+         "them is the overfitting, and it widens as capacity grows."])],
+     advice="A training score of exactly 1.0 is a warning rather than an achievement.",
+     related=["validation-curve", "cross-validation", "hyperparameter-depth"])
 
 # ------------------------------------------------------------ the sweep bits --
-_add(
-    slug="overfitting", title="Overfitting", group="Ideas worth knowing",
-    short="When a model memorises the examples it was shown instead of learning the general pattern.",
-    sections=[
-        ("The exam analogy", [
-            "A student who memorises the answers to last year's paper will ace last year's paper "
-            "and fail this year's. They learned the answers, not the subject.",
-            "Models do exactly this, given the chance. The more freedom you give them -- a deeper "
-            "tree, a larger C, a smaller penalty -- the more they can memorise.",
-        ]),
-        ("How to spot it here", [
-            "The sweep table has two score columns. One is measured on rows the model was trained "
-            "on; the other on rows held back from it.",
-            "When the training score keeps climbing while the held-back score stops improving, "
-            "you are watching overfitting happen. On the validation curve it is the moment the "
-            "dashed line pulls away from the solid one.",
-        ]),
-    ],
-    advice="This is the whole reason the app sweeps a range instead of just maximising the fit.",
-    related=["hyperparameter", "test-set", "one-se-rule", "validation-curve"],
-)
 
-_add(
-    slug="standard-error", title="Standard error", group="Ideas worth knowing",
-    short="How much a score wobbles depending on which rows happened to land where.",
-    sections=[
-        ("Where it comes from", [
-            "Cross-validation gives five scores, not one. They will not be identical -- some "
-            "slices are a bit easier than others.",
-            "The standard error summarises how much they disagree. A small one means the five "
-            "runs broadly concurred; a large one means the result depends heavily on the shuffle.",
-        ]),
-        ("Why it matters more than it sounds", [
-            "If setting A scores 0.9655 and setting B scores 0.9640, B looks worse. But if the "
-            "standard error is 0.0158, that gap is a tenth of the ordinary wobble -- there is no "
-            "real difference. Picking A over B is reading meaning into noise.",
-        ]),
-    ],
-    advice="Look at the ± column before believing any difference between two rows.",
-    related=["cross-validation", "one-se-rule", "seed"],
-)
+_add(slug="standard-error", title="Standard error", group="Ideas worth knowing",
+     short="How much a cross-validation score would move if you reshuffled the folds.",
+     sections=[("Definition", [
+         "From the k fold scores s₁ … s_k,",
+         Math("SE = s ⁄ √k,   where s is the sample standard deviation of the sᵢ"),
+         "It estimates the standard deviation of the mean itself rather than of the "
+         "individual scores — which is why it shrinks as k grows."]),
+       ("Why it changes what you conclude", [
+         "Two models scoring 0.94 and 0.95 with a standard error of 0.02 are not "
+         "distinguishable on this data. Reading the second as better is reading noise.",
+         "Reporting a mean without a spread invites exactly that mistake, which is why the "
+         "sweep table here shows both."])],
+     advice="Treat differences smaller than one standard error as ties, not as rankings.",
+     related=["cross-validation", "one-se-rule", "validation-curve"])
 
-_add(
-    slug="one-se-rule", title="How the winner is picked", group="Ideas worth knowing",
-    short="Two options: take the top score, or take the simplest setting that is statistically "
-          "tied with the top score.",
-    sections=[
-        ("Best mean", [
-            "The obvious approach: whichever value scored highest, wins.",
-            "The catch is that the highest of five noisy numbers is partly just the luckiest of "
-            "five noisy numbers.",
-        ]),
-        ("One standard error (the default)", [
-            "Take the best score, and gather every setting within one standard error of it. "
-            "Statistically, none of those is distinguishable from the winner.",
-            "From that group, keep the simplest model -- the shallower tree, the wider "
-            "neighbourhood, the heavier penalty.",
-        ]),
-        ("A real example from the iris data", [
-            "Tree depths 3, 4, 5, 6, 8, 10 and 14 all score exactly 0.9655. Identical. But the "
-            "training score climbs from 0.9847 to a perfect 1.000 across that range -- the deeper "
-            "trees are memorising, and gaining nothing for it.",
-            "\"Best mean\" picks arbitrarily among seven tied values. The one standard error rule "
-            "takes depth 3: same measured performance, a fraction of the complexity, and a tree "
-            "you can actually read.",
-        ]),
-    ],
-    advice="Leave it on one standard error unless you have a specific reason to chase the last "
-           "fraction of a percent.",
-    related=["standard-error", "overfitting", "cross-validation"],
-)
+_add(slug="one-se-rule", title="The one-standard-error rule", group="Ideas worth knowing",
+     short="Among models that are statistically tied, choose the simplest.",
+     sections=[("The rule", [
+         "Find the best mean cross-validated score and its standard error. Then, among all "
+         "candidates whose mean lies within one standard error of the best, take the "
+         "simplest — shallowest tree, largest k, strongest penalty.",
+         Math("choose the simplest f with  score(f)  ≥  max_g score(g) − SE"),]),
+       ("Why not just take the maximum", [
+         "Because with many candidates the best mean is partly the luckiest mean. Sweeping "
+         "thirty values and taking the argmax selects on both genuine quality and on noise, "
+         "and the two cannot be separated afterwards.",
+         "If two models are statistically indistinguishable there is no evidence favouring "
+         "the complicated one, and the simpler generalises at least as well while being "
+         "easier to explain."]),
+       ("Why it is in this app", [
+         "GridSearchCV takes the argmax silently. This rule encodes a human judgement — "
+         "prefer simplicity when the evidence does not distinguish — as an explicit, "
+         "auditable step, and the interface shows which candidates tied and which was "
+         "chosen."])],
+     advice="On iris every tree depth from 3 to 14 ties; the rule takes 3, which is also the only one you can read.",
+     related=["standard-error", "cross-validation", "automl"])
 
-_add(
-    slug="validation-curve", title="The sweep curve", group="Ideas worth knowing",
-    short="One line per score, drawn across every value tried, so you can see the trade-off "
-          "instead of just its answer.",
-    sections=[
-        ("The two lines", [
-            "The solid line is how the model did on data held back from it -- the one that "
-            "matters. The shaded band around it is the standard error.",
-            "The dashed line is how it did on the data it was trained on. That one is always "
-            "flattering; it is drawn for comparison, not for judging.",
-        ]),
-        ("What to look for", [
-            "A peak, or a plateau, in the solid line. That is roughly where the setting should be.",
-            "The two lines separating. That is where memorising begins.",
-            "A completely flat solid line means the setting barely matters for your data -- also "
-            "useful to know, and invisible if you only ever saw the winner.",
-        ]),
-    ],
-    advice="This picture is the reason to sweep a range rather than trust a single number.",
-    related=["overfitting", "standard-error", "one-se-rule"],
-)
+_add(slug="validation-curve", title="Validation curve", group="Ideas worth knowing",
+     short="Score against hyperparameter value, with training and validation both plotted.",
+     sections=[("What it shows", [
+         "Two curves. The training score generally rises with capacity. The validation score "
+         "rises, plateaus and eventually falls. Where they separate is overfitting; where "
+         "the validation curve peaks is the useful setting."]),
+       ("Reading it well", [
+         "The peak is less informative than the plateau. A flat region means many settings "
+         "are equivalent, and the one-standard-error rule takes the simplest of them.",
+         "A validation curve that is still rising at the edge of the grid means your grid is "
+         "too small, not that the largest value is best."])],
+     advice="If both curves are low, the model is underfitting and no hyperparameter will rescue it — change the model family.",
+     related=["one-se-rule", "overfitting", "hyperparameter"])
 
-_add(
-    slug="automl", title="\"Decide for me\"", group="Ideas worth knowing",
-    short="Runs every model with default settings and keeps the winner, without asking you "
-          "anything.",
-    sections=[
-        ("What it does", [
-            "Tries each available model, sweeps each one's default range, and keeps whichever "
-            "scored best. Test size, fold count, score and tie-breaking are all chosen for you.",
-        ]),
-        ("What it does not do", [
-            "Every one of those decisions still gets made -- just not by you, and without telling "
-            "you they were decisions at all.",
-            "It might pick a model that scores half a percent higher and is impossible to "
-            "explain, over one that is nearly as good and readable in three lines. It has no way "
-            "of knowing that you would have preferred the second.",
-        ]),
-        ("Why the button exists", [
-            "Lecture 1 walks through an automated pipeline, gets a good answer, and concludes "
-            "\"no human needed\" -- then spends the next slide listing every human judgement "
-            "hidden inside it. This button is that argument, next to the form that makes those "
-            "judgements visible. Press it, then compare.",
-        ]),
-    ],
-    advice="Useful as a baseline. Read the table of what it discarded before accepting its answer.",
-    related=["model", "one-se-rule", "hyperparameter"],
-)
+_add(slug="automl", title="Automated machine learning", group="Ideas worth knowing",
+     short="Automating model choice, hyperparameters and preprocessing — and what that costs.",
+     sections=[("What it automates", [
+         "Lecture 1 lists data preparation, model selection, hyperparameter optimisation and "
+         "algorithm selection. The lecture's own worked example runs the whole pipeline and "
+         "concludes, on a slide of its own: “No human needed!”"]),
+       ("The pros and cons the lecture gives", [
+         "In favour: it automates time-consuming work where no expertise is needed, and it "
+         "searches more thoroughly than a person would.",
+         "Against: the user is not in control, and it does not exploit the user's domain "
+         "expertise. The lecture quotes Barbudo et al.: most AutoML approaches operate as "
+         "black-box methods, so the human must simply rely on the generated models."]),
+       ("Where the human actually was", [
+         "The lecture answers its own slide. Humans collected the data — with what goal, and "
+         "what selection bias? Humans chose the model and the algorithm. Humans chose the "
+         "evaluation criterion, and MSE may mean nothing to whoever uses the result. Humans "
+         "will use the model, for a purpose the pipeline never saw.",
+         "That is why this app has a “decide for me” button and then shows you what it "
+         "decided: the contrast is the point."])],
+     advice="Use the automatic path first, then look at what it chose. Disagreeing with it is the most useful thing you can do here.",
+     related=["one-se-rule", "model", "hyperparameter"])
 
 # ---------------------------------------------------- visualisation concepts --
-_add(
-    slug="correlation", title="Correlation", group="Reading your data",
-    short="How strongly two columns move together, from -1 to +1.",
-    sections=[
-        ("Reading the number", [
-            "+1 means when one goes up the other always goes up, in perfect lock-step. -1 means "
-            "one always goes up as the other goes down. 0 means no straight-line relationship.",
-            "0.87 between petal length and petal width means longer petals are reliably wider.",
-        ]),
-        ("Why the heatmap is worth a look", [
-            "Two features correlated at 0.96 are telling you nearly the same thing twice. That is "
-            "not fatal, but it can make some models produce unstable, hard-to-read weights -- "
-            "which is exactly what ridge regression's penalty is there to control.",
-        ]),
-        ("The usual caution", [
-            "Correlation only detects straight-line relationships, and it never establishes that "
-            "one thing causes the other.",
-        ]),
-    ],
-    advice="Skim it for values near +1 or -1 between features. Those are your duplicates.",
-    related=["ridge", "feature-ranking"],
-)
 
-_add(
-    slug="feature-ranking", title="Which features carry the answer", group="Reading your data",
-    short="A rough ranking of how much each column tells you about the target, on its own.",
-    sections=[
-        ("How it is worked out", [
-            "For a number target, it is the strength of the correlation with the target.",
-            "For categories, it compares how far apart the category averages are against how "
-            "spread out each category is internally. A feature scores highly when the groups sit "
-            "well apart and each group is tight.",
-        ]),
-        ("The important limitation", [
-            "Every feature is judged alone. Two features that are useless separately but decisive "
-            "together will both rank near the bottom, and the ranking will be wrong about them.",
-            "So this is a guide to what is worth plotting first. It is not a list of columns to "
-            "delete.",
-        ]),
-    ],
-    advice="Use it to choose which two features to put on the scatter plot.",
-    related=["correlation", "projection", "feature"],
-)
+_add(slug="correlation", title="Correlation", group="Reading your data",
+     short="How strongly two features move together.",
+     sections=[("The measure", [
+         Math("ρ(u,v) = cov(u,v) ⁄ (σ_u σ_v)   ∈  [−1, 1]"),
+         "+1 is a perfect increasing linear relationship, −1 a perfect decreasing one, 0 no "
+         "linear relationship at all."]),
+       ("Two warnings", [
+         "It captures only linear dependence. Two features can be perfectly related — one "
+         "the square of the other, say — and show correlation near zero.",
+         "And it says nothing about causation. Correlated features also make linear models "
+         "unstable, since weight can shift between them with little change in predictions, "
+         "so coefficients should not be read as importances."])],
+     advice="Check the correlation matrix before trusting any per-feature importance.",
+     related=["feature-ranking", "projection", "feature"])
 
-_add(
-    slug="projection", title="The two-direction view", group="Reading your data",
-    short="Squashes all your features down to two axes so the whole dataset fits in one picture.",
-    sections=[
-        ("The shadow analogy", [
-            "A 3D object casts a 2D shadow. Rotate it and you get different shadows -- some "
-            "uninformative, one that shows the shape best.",
-            "This does the same with all your features at once, finding the angle that keeps as "
-            "much of the variation as possible.",
-        ]),
-        ("What the percentages mean", [
-            "\"73.0% of the variance\" means the horizontal axis alone captures nearly three "
-            "quarters of everything that varies in your data. The higher the two percentages add "
-            "up to, the more faithful the picture is.",
-            "If they add up to something low, treat the plot as a rough sketch -- a lot is being "
-            "flattened out of view.",
-        ]),
-        ("What to look for", [
-            "If the groups separate here but in no single pair of features, the information is "
-            "spread across several columns rather than sitting in one. That is a reason to prefer "
-            "a model that combines features.",
-        ]),
-    ],
-    advice="A quick sanity check on whether the categories are distinguishable at all.",
-    related=["feature-ranking", "scaling"],
-)
+_add(slug="feature-ranking", title="Feature ranking", group="Reading your data",
+     short="Ordering features by how well each separates the classes on its own.",
+     sections=[("How it is computed here", [
+         "By a one-way ANOVA F-ratio: the variance of the class means divided by the "
+         "variance within the classes,",
+         Math("F = between-class variance ⁄ within-class variance"),
+         "A feature whose class means are far apart relative to the spread inside each class "
+         "scores highly."]),
+       ("The catch", [
+         "It is univariate — each feature is judged alone. Two features that separate the "
+         "classes only in combination both score badly, and two features carrying identical "
+         "information both score well despite one being redundant.",
+         "So read it as a guide to what to plot, not as a decision about what to keep."])],
+     advice="Use it to choose which pair of features to scatter, then look at the plot before drawing conclusions.",
+     related=["correlation", "projection", "feature"])
 
-_add(
-    slug="class-balance", title="Class balance", group="Reading your data",
-    short="How many rows each category has. Lopsided counts distort several things at once.",
-    sections=[
-        ("Why it matters", [
-            "If 95% of your rows are one category, a model can score 95% accuracy by always "
-            "guessing that one and never learning anything.",
-            "A category with very few rows also gives the model almost nothing to learn from, and "
-            "makes every score involving it unreliable.",
-        ]),
-        ("What the app does about it", [
-            "Both the test split and every cross-validation fold are built to preserve these "
-            "proportions, and every category is guaranteed at least one row in the test set. "
-            "Otherwise a rare category could vanish from the evaluation entirely.",
-        ]),
-    ],
-    advice="If the shares are badly uneven, use macro F1 rather than accuracy.",
-    related=["macro-f1", "accuracy", "cross-validation"],
-)
+_add(slug="projection", title="Projection to two dimensions", group="Reading your data",
+     short="Compressing many features into two axes so the data can be drawn.",
+     sections=[("Principal component analysis", [
+         "PCA finds the directions along which the data varies most and uses the first two "
+         "as axes. Each is a weighted combination of the original features, chosen so the "
+         "first captures as much variance as possible, the second as much of the remainder "
+         "as possible while being orthogonal to the first.",
+         "It is computed from the singular value decomposition of the centred data matrix, "
+         "and the proportion of variance retained tells you how much the picture leaves "
+         "out."]),
+       ("How to read the picture", [
+         "Well-separated blobs mean the classes are separable in the full space too. "
+         "Overlapping blobs are weaker evidence — the overlap may be an artefact of "
+         "flattening, and the classes may still be separable in dimensions the plot "
+         "discarded.",
+         "The axes have no units and no meaning of their own; distances are meaningful, "
+         "positions are not."])],
+     advice="Standardise before projecting, or the components will simply follow whichever feature has the largest units.",
+     related=["scaling", "correlation", "class-balance"])
 
-_add(
-    slug="scaling", title="Putting features on the same scale", group="Reading your data",
-    short="Rescaling columns so a feature measured in big units does not drown out the others.",
-    sections=[
-        ("The problem", [
-            "Say one column is age in years (roughly 0-100) and another is income in euros "
-            "(roughly 0-100,000).",
-            "Any model that measures distance would be almost entirely driven by income, simply "
-            "because its numbers are bigger. Not because it matters more -- because of the units "
-            "someone happened to pick.",
-        ]),
-        ("What is done here", [
-            "Before training, every column is shifted and stretched to a comparable range. This "
-            "is applied to nearest neighbours, logistic regression, the SVM and ridge, all of "
-            "which are sensitive to it.",
-            "Decision trees are left alone, because they only ever ask whether a value is above "
-            "or below a threshold, and that answer does not change if you rescale the column.",
-        ]),
-    ],
-    advice="Handled automatically. Worth knowing about because it explains why a model can be "
-           "ruined by units alone.",
-    related=["knn", "projection", "ridge"],
-)
+_add(slug="class-balance", title="Class balance", group="Reading your data",
+     short="How many examples each class has, and why a skew changes everything.",
+     sections=[("Why it matters first", [
+         "It sets the baseline. If 90% of rows are one class, a model predicting only that "
+         "class scores 0.90, and any accuracy near that number is meaningless. You cannot "
+         "interpret a score without knowing this."]),
+       ("What to do about a skew", [
+         "Score with macro-F1 rather than accuracy, so the rare class counts. Stratify the "
+         "splits, so folds keep the proportions. And consider class weighting during "
+         "fitting, which makes errors on the rare class cost more."])],
+     advice="Read the class counts before reading any score; it is the first plot worth looking at.",
+     related=["accuracy", "macro-f1", "cross-validation"])
+
+_add(slug="scaling", title="Feature scaling", group="Reading your data",
+     short="Rewriting features onto a common scale so no one of them dominates by unit alone.",
+     sections=[("Standardisation", [
+         Math("z = (x − μ) ⁄ σ"),
+         "After it every feature has mean 0 and standard deviation 1, so a change of one "
+         "means the same amount everywhere. Min–max scaling to [0,1] is the common "
+         "alternative and is more sensitive to outliers."]),
+       ("Which models care", [
+         "k-NN and SVMs are defined through distances, so an unscaled feature in thousands "
+         "swamps one in units. Penalised linear models care too, since the penalty treats "
+         "all coefficients alike and so depends on the units they are in.",
+         "Decision trees do not care at all: a threshold test produces the same partition "
+         "under any monotone rescaling."]),
+       ("The leakage trap", [
+         "μ and σ must be computed on the training fold and applied unchanged to the "
+         "validation fold. Computing them over the whole dataset lets information about the "
+         "held-out rows influence the fit, which inflates the score."])],
+     advice="When in doubt, scale — it never hurts a tree and often rescues everything else.",
+     related=["knn", "svm", "projection"])
 
 
 def groups():

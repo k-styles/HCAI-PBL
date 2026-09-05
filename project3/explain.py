@@ -19,6 +19,27 @@ class Topic:
     group: str = "General"
 
 
+class Math(str):
+    """A display formula inside a section's paragraph list.
+
+    Subclassing str keeps every existing paragraph a plain string, so nothing
+    else has to change. The template asks for `.is_math`; a plain str has no
+    such attribute and Django resolves that to the empty string, which is
+    falsy -- so the two render differently without any type checking in the
+    template.
+
+    Formulas are written in unicode rather than LaTeX. These pages must render
+    with no network and no JavaScript, which rules out MathJax and KaTeX, and
+    the expressions here are small enough that unicode is honest about them.
+    """
+    is_math = True
+
+
+class Aside(str):
+    """A smaller note under a paragraph -- notation reminders, caveats."""
+    is_aside = True
+
+
 TOPICS = {}
 
 
@@ -29,353 +50,364 @@ def _add(**kw):
 
 _add(
     slug="deferral", title="Deferring", group="The idea",
-    short="Letting the computer hand a decision to a person instead of answering it itself.",
-    sections=[
-        ("The everyday version", [
-            "A call centre robot that answers what it can and puts you through to a human "
-            "when it cannot. That handover is a deferral.",
-            "Here the job is sorting news articles into four topics. For each article the "
-            "system either answers, or passes it to a human expert.",
-        ]),
-        ("Why it is not obvious", [
-            "The system has to decide who is more likely to be right on this particular "
-            "article, before knowing the answer. Handing over too much wastes a person's "
-            "time and can make things worse; handing over too little wastes the person.",
-        ]),
-    ],
-    advice="Everything on these pages is about learning when to hand over.",
-    related=["expert", "team-accuracy", "threshold"],
-)
+    short="The system declines to answer and hands the case to a human instead.",
+    sections=[("The setting", [
+        "Rather than choosing between full automation and none, build a team: the "
+        "classifier answers what it can and passes the rest to an expert. Lecture 5 "
+        "motivates this with legal judgment prediction, where four things make full "
+        "automation unacceptable — the decision carries real risk, unfamiliar cases are "
+        "misclassified at high rates, the model may reproduce biases in its data, and the "
+        "human often has context the model never saw."]),
+      ("The loss", [
+        "In the rejection formulation the system pays a fixed cost c(x) for abstaining. "
+        "Deferral replaces that abstract cost with something concrete: whatever the human "
+        "then gets wrong. Writing m(x) for the expert's prediction,",
+        Math("L(h, r, x, y) = 1[y ≠ h(x)]·1[not deferred]  +  1[y ≠ m(x)]·1[deferred]"),
+        "You pay for being wrong when you answer, and for the expert being wrong when you "
+        "hand over. An optional extra term c(x) charges for the expert's time."]),
+      ("The observation that makes this hard", [
+        "Lecture 5 states it directly: this is not a three-class problem with labels "
+        "world, sports and pass. There is no label anywhere saying whether an article "
+        "should have been deferred — nobody ever wrote one down.",
+        "The training signal for the deferral decision has to be constructed out of things "
+        "that can be observed: whether the classifier was right, and whether the expert "
+        "was."])],
+    advice="If a deferral rule only ever looks at the classifier's confidence, it is solving rejection, not deferral.",
+    related=["expert", "advantage", "threshold", "outcomes"])
 
 _add(
     slug="expert", title="The simulated expert", group="The idea",
-    short="A stand-in for a human specialist, who is good at some kinds of article and poor at others.",
-    sections=[
-        ("Why simulated", [
-            "Training this kind of system needs to know what a human expert would have "
-            "said about thousands of articles. Collecting that for real is expensive, so "
-            "the expert here is a program that behaves like one.",
-        ]),
-        ("What makes them realistic", [
-            "They are not perfect and they are not uniformly mediocre. Like a real "
-            "journalist, they have a beat: reliable on their own subjects, weak outside "
-            "them.",
-            "Crucially their competence depends on what the article looks like, never on "
-            "the right answer. An expert who was reliable 'whenever the answer is Sports' "
-            "could never be found out by asking questions, because the answer is exactly "
-            "what you do not know when you are deciding whether to ask.",
-        ]),
-    ],
-    advice="Two experts are offered so you can see the method behave differently on each.",
-    related=["deferral", "region", "competence"],
-)
+    short="A stand-in for a human annotator — deliberately imperfect, and better in some regions than others.",
+    sections=[("Why simulate", [
+        "Lecture 7 makes this a general principle: test on simulated users first, because "
+        "they give full control over behaviour and make results interpretable, and real "
+        "users are expensive. Here it also makes the experiments repeatable."]),
+      ("What makes an expert useful for this project", [
+        "Competence must vary with the input. An expert who is right 70% of the time "
+        "uniformly at random gives a deferral problem with a constant optimal answer — "
+        "always defer, or never — and nothing to learn.",
+        "So the expert is right in identifiable regions and wrong elsewhere, mimicking a "
+        "person with a specialism."]),
+      ("The subtle constraint", [
+        "Competence must depend on the input x, not on the true label y. An expert defined "
+        "as “95% accurate whenever the article is about sports” cannot be exploited at "
+        "prediction time, because the topic is precisely what is unknown then.",
+        "Making competence a function of the text — its vocabulary, its length — keeps the "
+        "problem well posed, and is what allows the active learning in the third stage to "
+        "discover anything at all."])],
+    advice="Check that competence really varies by region before trusting any downstream result.",
+    related=["region", "competence", "deferral"])
 
 _add(
     slug="region", title="Regions of the input space", group="The idea",
-    short="Groups of similar articles, found automatically by clustering the text.",
-    sections=[
-        ("What it means", [
-            "Articles about the same sort of thing use the same sort of words. Grouping "
-            "them by word usage produces clusters -- one might be full of company results "
-            "and share prices, another full of match reports.",
-            "These groups are the 'regions' the expert specialises in. Nobody labelled "
-            "them; they fall out of the text.",
-        ]),
-        ("Why it matters here", [
-            "It gives 'this expert is good at some things' a precise meaning that a "
-            "computer can check, and one you can read: each region is shown with the words "
-            "that most define it.",
-        ]),
-    ],
-    advice="Look at the region table to see what each expert is actually good at.",
-    related=["expert", "competence"],
-)
+    short="Groups of similar articles, used to describe where the expert is strong or weak.",
+    sections=[("What a region is", [
+        "A subset of inputs that resemble one another — here, articles sharing vocabulary. "
+        "They are found by clustering the vectorised text, so a region is defined by the "
+        "words it contains and can be identified without knowing the topic."]),
+      ("Why they are useful", [
+        "They make competence describable. “The expert is reliable on articles about "
+        "markets and earnings” is a statement about a region, and it can be checked, "
+        "reported and acted on.",
+        "They also give the active learning something to generalise over: knowing the "
+        "expert did well on one article says something about nearby articles only if "
+        "nearby means something."]),
+      ("Their limit", [
+        "A region-level rule is coarse. If competence varies within a region, no rule that "
+        "only knows which region an article is in can capture it — the residual has to be "
+        "handled per item, and measuring that gap is informative in itself."])],
+    advice="Compare a region-level deferral rule against a per-item one; the difference tells you how much structure the regions actually capture.",
+    related=["expert", "competence", "tfidf"])
 
 _add(
     slug="competence", title="Competence model", group="How it works",
-    short="A small model that predicts how likely someone is to be right on a given article, without knowing the answer.",
-    sections=[
-        ("Two of them", [
-            "One estimates how likely the classifier is to be right. One estimates how "
-            "likely the expert is to be right. Both look only at the article.",
-            "Neither predicts the topic. They predict whether an answer would be correct, "
-            "which is a different and harder question.",
-        ]),
-        ("Where the classifier's one comes from free", [
-            "We already know when the classifier was wrong on the training articles, so "
-            "its competence model costs nothing to build. The expert's is the expensive "
-            "one, because every data point means asking a person.",
-        ]),
-    ],
-    advice="This asymmetry is why the active learning is about the expert, not the classifier.",
-    related=["out-of-fold", "advantage", "active-learning"],
-)
+    short="A second model that predicts whether the expert will be right, from the article alone.",
+    sections=[("What it estimates", [
+        "For each article, the probability that the expert answers correctly,",
+        Math("q(x) = P( m(x) = y | x )"),
+        Aside("m(x) is the expert's prediction, y the true label."),
+        "It is fitted as an ordinary binary classification problem: the inputs are article "
+        "features, and the target is whether the expert was right on that article."]),
+      ("Where the labels come from", [
+        "This is where the missing “should we defer” label gets manufactured. You cannot "
+        "observe whether deferral was correct, but you can observe whether the expert was, "
+        "given a queried article. That binary outcome is a legitimate training target."]),
+      ("Why it must be honest", [
+        "The same care is needed as for the classifier: correctness has to be measured on "
+        "predictions the model did not fit, or the competence model learns that the expert "
+        "is better than they are."])],
+    advice="A competence model that predicts a constant is telling you the expert has no exploitable structure.",
+    related=["expert", "advantage", "out-of-fold"])
 
 _add(
     slug="advantage", title="The advantage score", group="How it works",
-    short="How much more likely the expert is to be right than the classifier, on this article.",
-    sections=[
-        ("The rule in one line", [
-            "advantage = (chance the expert is right) − (chance the classifier is right).",
-            "Positive means hand over. The bigger it is, the clearer the case.",
-        ]),
-        ("Why the size matters, not just the sign", [
-            "An advantage of 0.01 means it is nearly a coin flip and probably not worth a "
-            "person's time. Having a number rather than a yes/no lets you set how sure you "
-            "want to be before bothering someone.",
-        ]),
-    ],
-    advice="The threshold slider is what turns this number into a decision.",
-    related=["threshold", "competence"],
-)
+    short="How much more likely the expert is to be right than the classifier, for this article.",
+    sections=[("The quantity", [
+        Math("a(x) = q(x) − p(x)"),
+        Aside("q(x) is the expert's estimated chance of being right; p(x) the classifier's."),
+        "Positive means the expert is the better bet on this article; negative means the "
+        "machine is. Deferring is worthwhile when a(x) is large enough to justify the "
+        "interruption."]),
+      ("Why the difference and not either term", [
+        "Rejection asks whether the machine is unsure. Deferral asks whether somebody else "
+        "is better. A hard article that the expert also gets wrong has low p and low q, so "
+        "a small advantage — deferring it costs attention and buys nothing.",
+        "Conversely an article the classifier is confidently wrong about has high p and yet "
+        "a large true advantage. Confidence-based rules never catch those, which is the "
+        "practical difference between the two framings."]),
+      ("The connection to the Bayes rule", [
+        "Lecture 5's Bayes-optimal deferral rule compares the machine's expected error "
+        "with the expert's expected cost: defer when",
+        Math("1 − max_y P(y|x)   ≥   E_{y|x}[ c_u(x, y) ]"),
+        "The advantage score is a direct estimate of the gap between those two sides."])],
+    advice="Sort the test set by advantage and read both ends; it is the quickest way to see what the policy has learned.",
+    related=["competence", "threshold", "deferral"])
 
 _add(
-    slug="threshold", title="The threshold", group="How it works",
-    short="How much better the expert has to look before the system actually hands over.",
-    sections=[
-        ("What moving it does", [
-            "At a low threshold the system hands over readily -- more articles reach the "
-            "expert, and more of those handovers turn out to have been unnecessary.",
-            "At a high threshold it hands over only the clearest cases. Fewer wasted "
-            "handovers, but it keeps articles it would have been better off passing on.",
-        ]),
-        ("Whose choice it is", [
-            "Nobody can pick this for you, because it depends on how expensive the "
-            "expert's time is compared to a mistake. That is why it is a control rather "
-            "than a constant buried in the code.",
-        ]),
-    ],
-    advice="Drag it and watch the four outcome counts move.",
-    related=["advantage", "deferral-rate", "outcomes"],
-)
+    slug="threshold", title="The threshold τ", group="How it works",
+    short="How large the expert's advantage must be before the case is actually handed over.",
+    sections=[("What it controls", [
+        "The rule is to defer when a(x) > τ. At τ = 0 the system defers whenever the "
+        "expert is even marginally better. Raising τ demands the expert be substantially "
+        "better, so fewer articles are handed over.",
+        "τ therefore absorbs the query cost c(x) from lecture 5: it is the price of the "
+        "expert's attention, expressed in units of accuracy."]),
+      ("Why it is exposed to the user", [
+        "There is no correct value. It encodes how much a human's time is worth relative "
+        "to an error, which is a fact about the deployment and not about the data. A "
+        "newsroom with one sub-editor and a newsroom with ten want different τ."]),
+      ("Reading the sweep", [
+        "Sweeping τ traces the accuracy–coverage curve. That curve, rather than any single "
+        "operating point, is what a decision-maker needs: it answers what team accuracy "
+        "you get for 10% of an expert's time."])],
+    advice="Quote τ together with the deferral rate it produces; on its own the number means little.",
+    related=["advantage", "deferral-rate", "team-accuracy"])
 
 _add(
     slug="outcomes", title="The four outcomes", group="Measuring",
-    short="Every article falls into one of four cases, and only one of them is a reason to hand over.",
-    sections=[
-        ("The four cases", [
-            "Both would be right: handing over changes nothing and wastes the expert's time.",
-            "Only the classifier is right: handing over actively makes the answer worse.",
-            "Only the expert is right: this is the one case worth handing over.",
-            "Neither is right: handing over is harmless and pointless.",
-        ]),
-        ("Why not just count correct answers", [
-            "A single accuracy figure treats all four the same. Two systems with identical "
-            "accuracy can be wasting wildly different amounts of a person's time.",
-        ]),
-    ],
-    advice="This table is the honest picture of what a deferral policy is doing.",
-    related=["deferral-precision", "team-accuracy"],
-)
+    short="Every deferred article falls into one of four cases, and only one of them is a win.",
+    sections=[("The cases", [
+        "For a deferred article, the machine would have been right or wrong, and the "
+        "expert is right or wrong. That is a 2×2 table:",
+        "Expert right, machine would have been wrong — a genuine win, the reason deferral "
+        "exists. Expert right, machine also right — wasted, the answer was already "
+        "available. Expert wrong, machine would have been right — actively harmful, the "
+        "handover destroyed a correct answer. Both wrong — no loss, no gain."]),
+      ("Why the breakdown matters", [
+        "Team accuracy sums these into one number and hides which is happening. Two "
+        "policies with identical accuracy can have completely different profiles, and the "
+        "one wasting less of the expert's time is the better system."])],
+    advice="Report the four counts, not just the total; the harmful cell is the one worth minimising.",
+    related=["team-accuracy", "deferral-precision", "oracle"])
 
 _add(
     slug="deferral-precision", title="Deferral precision and recall", group="Measuring",
-    short="Of the articles handed over, how many needed to be; and of those that needed handing over, how many were.",
-    sections=[
-        ("Precision", [
-            "Out of everything sent to the expert, the share where the expert really was "
-            "right and the classifier really was wrong. Low precision means the person is "
-            "being interrupted for nothing.",
-        ]),
-        ("Recall", [
-            "Out of all the articles where the expert would have rescued a wrong answer, "
-            "the share actually sent. Low recall means the system is keeping articles it "
-            "cannot handle.",
-        ]),
-        ("Why both", [
-            "You can get perfect recall by handing over everything, and near-perfect "
-            "precision by handing over almost nothing. Only together do they describe a "
-            "sensible policy.",
-        ]),
-    ],
-    advice="A good policy holds both up at once; watch them trade off as you move the threshold.",
-    related=["outcomes", "team-accuracy", "oracle"],
-)
+    short="Of the cases handed over, how many needed it; and of the cases that needed it, how many were caught.",
+    sections=[("The definitions", [
+        "Call an article one that “needed deferral” if the expert is right and the machine "
+        "wrong. Then",
+        Math("precision = (needed ∧ deferred) ⁄ deferred"),
+        Math("recall = (needed ∧ deferred) ⁄ needed"),
+        "Precision is how much of the expert's time was well spent. Recall is how much of "
+        "the available benefit was captured."]),
+      ("The trade-off", [
+        "Lowering τ raises recall and lowers precision — you catch more of the useful cases "
+        "by handing over more of everything. The two cannot be maximised together, which "
+        "is why a single number cannot describe a deferral policy.",
+        "The harmonic mean of the two is the F1 score, if a single summary is wanted."])],
+    advice="High recall with poor precision means the policy is deferring a lot rather than deferring well.",
+    related=["outcomes", "threshold", "oracle"])
 
 _add(
     slug="team-accuracy", title="Team accuracy", group="Measuring",
-    short="How often the answer is right once the classifier and the expert have divided the work.",
-    sections=[
-        ("How it is counted", [
-            "For each article, whoever was assigned it gives the answer, and we check "
-            "whether it is right. The share correct is the team's accuracy.",
-        ]),
-        ("What it hides", [
-            "It says nothing about how much of the expert's time was spent. A team that "
-            "hands over everything can look respectable while having learned nothing.",
-        ]),
-    ],
-    advice="Read it next to the deferral rate; alone it is easy to game.",
-    related=["outcomes", "deferral-rate", "oracle"],
-)
+    short="How often the combined system is right, counting the classifier's answers and the expert's together.",
+    sections=[("Definition", [
+        Math("acc_team = (1/n) Σᵢ 1[ ŷᵢ = yᵢ ]"),
+        Aside("ŷᵢ is whichever of the two answered article i."),
+        "It is the headline number, and it is the one to be most careful with."]),
+      ("Why it is not enough", [
+        "If the expert is better overall than the classifier, the policy “always defer” "
+        "scores well. It has made no decisions, consumed an entire person's attention, and "
+        "would still look respectable in a table.",
+        "The brief is explicit that evaluation must reflect the quality of the deferral "
+        "decisions and not only classification accuracy."])],
+    advice="Never quote team accuracy without the deferral rate beside it.",
+    related=["deferral-rate", "outcomes", "oracle"])
 
 _add(
     slug="deferral-rate", title="Deferral rate", group="Measuring",
-    short="The share of articles handed to the expert.",
-    sections=[
-        ("Why it is a cost", [
-            "Each handover is a person reading an article. A policy that gains half a "
-            "point of accuracy by handing over 60% of the work is usually a bad deal.",
-        ]),
-    ],
-    advice="Compare policies at similar deferral rates, or the comparison is unfair.",
-    related=["team-accuracy", "threshold"],
-)
+    short="The fraction of articles handed to the expert — the price of the accuracy gain.",
+    sections=[("What it measures", [
+        "Coverage of the human. A system deferring 5% of a queue is asking for a few "
+        "minutes; one deferring 60% is asking for most of a job.",
+        "It converts directly into cost, which is what makes it the natural x-axis when "
+        "reporting results."]),
+      ("Reading it with accuracy", [
+        "Plotting team accuracy against deferral rate as τ sweeps gives the curve that "
+        "actually answers the deployment question. A steep initial rise means the policy "
+        "finds the valuable cases first, which is exactly what a good policy should do."])],
+    advice="Compare policies at equal deferral rate; comparing them at their own preferred rates compares nothing.",
+    related=["threshold", "team-accuracy", "oracle"])
 
 _add(
-    slug="oracle", title="The oracle", group="Measuring",
-    short="A cheating policy that always knows who was right. Not achievable — it marks the ceiling.",
-    sections=[
-        ("What it does", [
-            "It hands over exactly the articles where the expert is right and the "
-            "classifier is wrong, and keeps everything else. To do that it has to know the "
-            "correct answers in advance, which no real system does.",
-        ]),
-        ("What it is for", [
-            "It says how much room there is. If the oracle scores 97.7% and the classifier "
-            "alone scores 92.3%, then 5.4 points are theoretically available and a real "
-            "policy can be judged by how much of that it captures.",
-        ]),
-    ],
-    advice="Always read a result as a fraction of the oracle's headroom, not on its own.",
-    related=["team-accuracy", "outcomes"],
-)
+    slug="oracle", title="The oracle ceiling", group="Measuring",
+    short="The best any deferral policy could possibly do, computed by cheating.",
+    sections=[("How it is computed", [
+        "Defer exactly when the expert is right and the machine wrong — using the true "
+        "labels, which no real policy has. That is the maximum achievable team accuracy at "
+        "the minimum possible deferral rate."]),
+      ("Why it is the number to report against", [
+        "An improvement of two points over the classifier alone means one thing if the "
+        "ceiling is three points away and something quite different if it is twenty. The "
+        "oracle converts an unanchored gain into a fraction of what was available.",
+        "It also bounds the problem honestly. If the oracle headroom is small, no policy "
+        "can do much, and saying so is more useful than reporting a small win as a success."])],
+    advice="Report your policy's gain as a percentage of the oracle headroom; it is the only scale-free way to judge it.",
+    related=["team-accuracy", "outcomes", "deferral-precision"])
 
 _add(
     slug="active-learning", title="Active learning", group="Asking questions",
-    short="Choosing which questions to ask, when asking is expensive.",
-    sections=[
-        ("The setting", [
-            "At the start we have no idea what the expert is good at. We can find out only "
-            "by showing them an article and seeing what they say. Every question costs "
-            "their time, so we cannot ask about all 120,000.",
-        ]),
-        ("The idea", [
-            "Some articles teach you much more than others. Choosing them deliberately, "
-            "instead of at random, is active learning.",
-        ]),
-    ],
-    advice="The comparison to beat is simply picking articles at random.",
-    related=["acquisition", "query-budget", "competence"],
-)
+    short="Choosing which examples to get labelled, instead of labelling everything.",
+    sections=[("The motivation", [
+        "Lecture 6 opens with speech recognition for low-resource languages: audio is easy "
+        "to obtain, transcriptions are the bottleneck. The same asymmetry holds here — "
+        "articles are free, expert opinions are not."]),
+      ("Why choosing helps so much", [
+        "For the 0–1 loss and a finite hypothesis class, passive learning obeys",
+        Math("P( |L(h) − L_emp(h)| > ε )  ≤  2|ℋ| e^(−2Nε²)"),
+        "Lecture 6 works the numbers: for |ℋ| = 100, ε = 10⁻³ and 95% confidence, that "
+        "demands almost three million labelled points.",
+        "That is the cost of labelling blindly. Active learning is the claim that most "
+        "points teach you nothing, so choosing well does far better than the bound "
+        "suggests."]),
+      ("The setting in this project", [
+        "The classifier can be trained on the full labelled dataset. The expert's opinions "
+        "are what must be bought, a few at a time, and the goal is to learn where "
+        "deferring pays."])],
+    advice="Always include a random-query baseline; lecture 6 names uniform random as a legitimate strategy, and it is a hard one to beat.",
+    related=["acquisition", "query-budget", "competence"])
 
 _add(
     slug="acquisition", title="How the next question is chosen", group="Asking questions",
-    short="Ask about the articles where it is least clear whether handing over is the right call.",
-    sections=[
-        ("The rule", [
-            "For each article we have a guess at how much better the expert would be. "
-            "Where that guess sits near zero, the decision is on a knife edge and an answer "
-            "would settle it. Those are the articles worth asking about.",
-        ]),
-        ("The trap this avoids", [
-            "The obvious idea is to ask about whatever the classifier finds hardest. But "
-            "an article that baffles the classifier is only worth a question if the expert "
-            "might do better. If both are lost, learning that teaches nothing about when to "
-            "hand over.",
-            "That alternative is included on the page as a comparison, so you can see "
-            "whether the reasoning holds up rather than taking it on trust.",
-        ]),
-        ("Starting from nothing", [
-            "With no answers yet there is no guess to be near the edge of, so the first "
-            "batch is spread evenly across the regions. Otherwise the search would chase "
-            "whatever its first few answers happened to suggest and never look elsewhere.",
-        ]),
-    ],
-    advice="Compare the four strategies on the curve; the differences are real but modest.",
-    related=["active-learning", "query-budget", "region"],
-)
+    short="A utility function scores every unlabelled article by how much its answer would teach.",
+    sections=[("The framework", [
+        "A query strategy is a rule for picking the next instance to label, and it is "
+        "defined by a utility u(x) encoding informativeness. Lecture 6 divides strategies "
+        "into information-based ones, which target uncertainty, and representation-based "
+        "ones, which target coverage of the input space."]),
+      ("The classical uncertainty measures", [
+        "For a model producing class probabilities q(y|x), lecture 6 gives three:",
+        Math("u_LC(x) = 1 − max_y q(y|x)"),
+        Math("u_margin(x) = 1 − ( q(ŷ₁|x) − q(ŷ₂|x) )"),
+        Math("u_Ent(x) = − Σₖ q(k|x) log q(k|x)"),
+        "Least confidence uses only the top class and discards the rest of the "
+        "distribution. Margin compares the top two, so it captures genuine ambiguity "
+        "between competing labels. Entropy uses the whole distribution."]),
+      ("The trap specific to this project", [
+        "Those measure uncertainty about the label. The goal here is to learn when "
+        "deferral is beneficial, which is a property of the difference between two models, "
+        "not of either alone.",
+        "The classifier's hardest articles are not the ones where deferring helps most: an "
+        "article the classifier agonises over and the expert also fails is worthless to "
+        "query. The informative queries are those where the estimated advantage a(x) is "
+        "closest to the threshold — near the deferral boundary, not the classification "
+        "one."])],
+    advice="Plot each strategy against random on the same axes; a strategy that does not beat random is a result worth reporting.",
+    related=["active-learning", "advantage", "confidence"])
 
 _add(
     slug="query-budget", title="Query budget", group="Asking questions",
-    short="How many articles the expert has been asked about so far.",
-    sections=[
-        ("Reading the curve", [
-            "The horizontal axis is how many questions have been asked; the vertical axis "
-            "is how well the resulting team does. A strategy is better if its line is "
-            "higher for the same number of questions.",
-            "Every line starts at the same point because all strategies share the same "
-            "opening batch, so early on there is nothing to separate them.",
-        ]),
-    ],
-    advice="Look at where lines separate, not just where they end.",
-    related=["active-learning", "acquisition"],
-)
+    short="The number of expert opinions you are allowed to buy.",
+    sections=[("Why it is fixed", [
+        "Expert time is the scarce resource, so results are reported as a function of how "
+        "much of it was spent. The natural presentation is a curve: queries used on the "
+        "x-axis, team accuracy on the y-axis."]),
+      ("The cold start", [
+        "At the first query there are no expert labels, so every utility-based strategy is "
+        "undefined. Something has to seed the process — a random or stratified first round "
+        "is normal — and the choice should be deliberate rather than accidental, since it "
+        "affects every strategy equally and can dominate short budgets."]),
+      ("Reading the curves", [
+        "These curves are noisy: a single run can suggest anything. Averaging over several "
+        "random seeds and showing the spread is the difference between a result and an "
+        "anecdote."])],
+    advice="Compare strategies at equal budget, and show the variation across seeds rather than a single run.",
+    related=["active-learning", "acquisition"])
 
 _add(
     slug="out-of-fold", title="Out-of-fold scoring", group="Under the bonnet",
-    short="Testing the classifier on articles it was not trained on, so its error rate is honest.",
-    sections=[
-        ("The problem it fixes", [
-            "A model scored on the very examples it learned from looks far better than it "
-            "is. Here it appeared to make 3,403 mistakes that way, against 11,350 when "
-            "tested properly.",
-            "The competence model learns from those mistakes, so using the flattering "
-            "number would have taught it the classifier almost never needs help.",
-        ]),
-        ("How it works", [
-            "Split the data into five parts. Train on four, predict the fifth, rotate. "
-            "Every article ends up predicted by a model that never saw it.",
-        ]),
-    ],
-    advice="Nothing to do; it is why the numbers here are trustworthy.",
-    related=["competence", "classifier"],
-)
+    short="Judging a model only on predictions made by a version of it that never saw that row.",
+    sections=[("The problem it solves", [
+        "A model asked about its own training data is far more accurate than it will ever "
+        "be on new data — it has already seen those labels. Using that inflated view to "
+        "decide when the classifier needs help teaches the system that it almost never "
+        "does."]),
+      ("The procedure", [
+        "Split the training data into k folds. For each fold, train on the other k−1 and "
+        "predict the held-out one. Every prediction then comes from a model that never saw "
+        "that row, and every row still receives a prediction."]),
+      ("The size of the effect", [
+        "It is not a small correction. On this dataset the classifier makes roughly 3,400 "
+        "errors in-sample against 11,350 out-of-fold — the in-sample view understates "
+        "failure by more than a factor of three."])],
+    advice="Every quantity that feeds the deferral decision must be computed out-of-fold, not just the headline accuracy.",
+    related=["classifier", "competence", "deferral"])
 
 _add(
     slug="classifier", title="The classifier", group="Under the bonnet",
-    short="The machine that sorts articles into topics on its own, correct 92.3% of the time.",
-    sections=[
-        ("What it is", [
-            "It counts which words and word pairs appear in an article and weighs up which "
-            "topic those words point to. No neural network, no pretrained model.",
-        ]),
-        ("Why this one", [
-            "A slightly more accurate alternative was available (92.9%) but it reports only "
-            "its guess, not how sure it is. Everything on these pages depends on knowing "
-            "how confident it was, so half a point of accuracy was traded for that.",
-        ]),
-    ],
-    advice="Its 92.3% is the number every other policy has to beat.",
-    related=["out-of-fold", "confidence", "tfidf"],
-)
+    short="The model that answers whenever the system does not defer.",
+    sections=[("What it is", [
+        "A linear model over TF-IDF features of the article text, trained on the full "
+        "labelled training set. AG News has four balanced topics — world, sports, business "
+        "and science/technology — so chance is 25%."]),
+      ("Why something simple", [
+        "It is retrained many times across the deferral and active learning experiments, so "
+        "training cost multiplies. A sparse linear model is fast, strong on text, and "
+        "produces calibrated-enough probabilities to be usable as confidence.",
+        "It also sets the baseline the human–AI team must beat, which is the point of "
+        "task 1: a team that does not beat the machine alone is not worth assembling."])],
+    advice="Its accuracy is the number every later result should be compared against.",
+    related=["tfidf", "confidence", "out-of-fold"])
 
 _add(
     slug="confidence", title="Confidence", group="Under the bonnet",
-    short="How sure the classifier is, which turns out to predict its mistakes better than the article's words do.",
-    sections=[
-        ("Where it comes from", [
-            "The classifier scores all four topics and the gap between the top two says how "
-            "close the call was. A wide gap is a confident answer.",
-        ]),
-        ("A result worth knowing", [
-            "That single gap predicts whether the classifier is right about as well as all "
-            "50,000 word features put together, and slightly better. When a model is "
-            "unsure, it is usually unsure for a reason.",
-        ]),
-    ],
-    advice="It is fed to the competence models directly rather than left to be rediscovered.",
-    related=["competence", "classifier"],
-)
+    short="How sure the classifier is — and why that alone is the wrong basis for deferring.",
+    sections=[("What it means", [
+        "The probability assigned to the predicted class, max_y q(y|x). High confidence "
+        "means the model considers the alternatives unlikely."]),
+      ("Confidence-based rejection", [
+        "Lecture 5 derives the optimal rejection rule for a known cost c: abstain when the "
+        "chance of being wrong exceeds the cost of abstaining. With calibrated "
+        "probabilities that reduces to a threshold on confidence — Chow's rule."]),
+      ("Why it is not enough for deferral", [
+        "Rejection with a fixed cost only needs to know whether the machine is likely to be "
+        "wrong. Deferral needs to know whether somebody else is likely to be right, which "
+        "confidence says nothing about.",
+        "Worse, confidence is systematically wrong where it matters most. Models are often "
+        "confidently wrong, and those cases — where deferring pays most — look safest to a "
+        "confidence rule."])],
+    advice="Use confidence as one input to the advantage score, never as the deferral rule itself.",
+    related=["advantage", "acquisition", "classifier"])
 
 _add(
     slug="tfidf", title="Turning text into numbers", group="Under the bonnet",
-    short="Counting words, weighted so that common words count for little.",
-    sections=[
-        ("The idea", [
-            "'The' appears everywhere and tells you nothing. 'Nasdaq' appears rarely and "
-            "tells you a lot. Weighting each word by how rare it is across all articles "
-            "gives every article a long list of numbers a model can work with.",
-        ]),
-        ("And then squashing it", [
-            "That list is 50,000 numbers long, which is far too many to learn from a few "
-            "hundred expert answers. It is compressed to about a hundred summary numbers "
-            "first, which loses very little and makes the competence models learnable.",
-        ]),
-    ],
-    advice="Nothing to set; it is why a few hundred questions are enough.",
-    related=["classifier", "competence"],
-)
+    short="Each article becomes a vector of weighted word counts.",
+    sections=[("Term frequency, inverse document frequency", [
+        "A word's weight rises with how often it appears in this article and falls with how "
+        "many articles contain it at all:",
+        Math("tfidf(t, d) = tf(t, d) · log( N ⁄ df(t) )"),
+        Aside("tf is the count of term t in document d; df(t) the number of documents containing t; N the total."),
+        "The second factor is the point. “The” appears everywhere and carries no "
+        "information about topic, so log(N/df) is near zero for it. “Quarterly” appears in "
+        "few articles and is highly indicative, so its weight stays large."]),
+      ("What it throws away", [
+        "Word order and syntax entirely — the representation is a bag of words. “Dog bites "
+        "man” and “man bites dog” are identical vectors. For topic classification that "
+        "loss is largely harmless, which is why the method survives.",
+        "The result is very high-dimensional and extremely sparse: tens of thousands of "
+        "columns, of which each article uses a few dozen."])],
+    advice="The same vectorisation defines the regions, so its vocabulary determines what “similar article” can mean.",
+    related=["classifier", "region"])
 
 
 def groups():
