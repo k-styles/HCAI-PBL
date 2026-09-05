@@ -392,7 +392,7 @@ _add(
     slug="confidence", title="Confidence", group="Under the bonnet",
     short="How sure the classifier is — and why that alone is the wrong basis for deferring.",
     sections=[("What it means", [
-        "The probability assigned to the predicted class, max_y q(y|x). High confidence "
+        "The probability assigned to the predicted class, $max_y q(y|x)$. High confidence "
         "means the model considers the alternatives unlikely."]),
       ("Confidence-based rejection", [
         "Lecture 5 derives the optimal rejection rule for a known cost c: abstain when the "

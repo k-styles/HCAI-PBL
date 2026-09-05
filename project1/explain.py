@@ -226,7 +226,7 @@ _add(slug="ridge", title="Ridge regression", group="Models",
          "which is the worked example running through lecture 1:",
          Math("w* ∈ argmin_w  Σₙ (yₙ − wᵀxₙ)²  +  λ‖w‖²"),
          "The first term is the loss ℓ(y, y′) = (y − y′)², the second is the penalisation "
-         "R(h_w) = ‖w‖², and λ is the hyperparameter weighting them."]),
+         "$R(h_w) = ‖w‖²$, and λ is the hyperparameter weighting them."]),
        ("Why penalise at all", [
          "Ordinary least squares is unstable when features are correlated: the fitted "
          "coefficients become large and opposite, cancelling each other, and swing wildly "
@@ -513,8 +513,9 @@ _add(slug="overfitting", title="Overfitting", group="Ideas worth knowing",
 _add(slug="standard-error", title="Standard error", group="Ideas worth knowing",
      short="How much a cross-validation score would move if you reshuffled the folds.",
      sections=[("Definition", [
-         "From the k fold scores s₁ … s_k,",
-         Math("SE = s ⁄ √k,   where s is the sample standard deviation of the sᵢ"),
+         "From the $k$ fold scores $s_1 … s_k$,",
+         Math("SE = s ⁄ √k"),
+         Aside("s is the sample standard deviation of the k fold scores, and k the number of folds."),
          "It estimates the standard deviation of the mean itself rather than of the "
          "individual scores — which is why it shrinks as k grows."]),
        ("Why it changes what you conclude", [

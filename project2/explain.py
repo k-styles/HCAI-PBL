@@ -99,8 +99,8 @@ _add(slug="tree", title="Decision tree", group="Models",
 _add(slug="logistic", title="Multinomial logistic regression", group="Models",
      short="A weighted sum of the features per class, turned into probabilities by the softmax.",
      sections=[("The model", [
-         "Each class c gets a weight vector w_c and a bias b_c. The score for class c is "
-         "the linear combination w_cᵀx + b_c, and the scores are converted into "
+         "Each class $c$ gets a weight vector $w_c$ and a bias $b_c$. The score for class "
+         "$c$ is the linear combination $w_c^⊤x + b_c$, and the scores are converted into "
          "probabilities that sum to one by the softmax function,"]),
        ("The softmax", [
          Math("P(y = c | x)  =  exp(w_cᵀx + b_c) ⁄ Σⱼ exp(w_jᵀx + b_j)"),
@@ -226,7 +226,8 @@ _add(slug="sparsity", title="Sparsity", group="Complexity",
 _add(slug="coefficient", title="Coefficient", group="Models",
      short="The weight a linear model gives one feature for one class.",
      sections=[("Reading one", [
-         "In w_cᵀx, the entry w_{c,j} says how strongly feature j pushes towards class c. "
+         "In $w_c^⊤x$, the entry $w_{c,j}$ says how strongly feature $j$ pushes towards "
+         "class $c$. "
          "Positive pushes towards, negative away, and the magnitude says how hard.",
          "Because the features here are standardised, the coefficients are directly "
          "comparable: each is the change in the class score produced by a one-standard-"
@@ -263,7 +264,7 @@ _add(slug="test-set", title="The test set", group="Measuring",
          "model fitted was noise specific to those rows. Only data that played no part in "
          "fitting gives an unbiased estimate."]),
        ("A caveat specific to this project", [
-         "The brief's criterion is acc_test − λΩ(f), so the test set is used to choose "
+         "The brief's criterion is $acc_test − λΩ(f)$, so the test set is used to choose "
          "which model the slider shows. Strictly, once a set has been used for selection "
          "it is no longer a clean estimate of generalisation — the reported accuracy is "
          "the best of several attempts on that sample.",

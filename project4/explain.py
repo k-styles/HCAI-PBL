@@ -159,7 +159,7 @@ _add(slug="bradley-terry", title="The Bradley–Terry model", group="The model",
        ("Where it comes from in the course", [
          "Lecture 9 gives the general Luce model for choice among finitely many options,",
          Math("p(a | s, θ) = U(a | s, θ) ⁄ Σ_{a′} U(a′ | s, θ)"),
-         "and notes that with two actions and utility exp(αθᵀq_a) this is the logit model. "
+         "and notes that with two actions and utility $exp(αθ^⊤q_a)$ this is the logit model. "
          "Bradley–Terry is exactly that two-option case."]),
        ("Why not deterministic", [
          "Because people are not consistent, and a model asserting the higher utility always "
@@ -193,7 +193,7 @@ _add(slug="plackett-luce", title="The Plackett–Luce model", group="The model",
          "At n = 2 the product has a single factor and is exactly Bradley–Terry, so nothing "
          "was replaced.",
          "Its pairwise marginals are the Bradley–Terry probabilities: the chance that i "
-         "appears before j in a sampled ranking is e^{U_i}/(e^{U_i}+e^{U_j}), whatever the "
+         "appears before j in a sampled ranking is $e^{U_i} ⁄ (e^{U_i} + e^{U_j})$, whatever the "
          "other films in the set. This is what makes the study legitimate — both interfaces "
          "estimate the same w, so scoring them on the same held-out pairs is a fair test "
          "rather than a category error."]),
@@ -328,7 +328,7 @@ _add(slug="standardise", title="Standardising", group="Fitting",
          "four-standard-deviation move, so the same weight would produce a far larger "
          "utility swing than for a common genre. An isotropic prior would then permit rare "
          "genres — the ones with least evidence — the largest effects, which is backwards.",
-         "Left as plain 0/1, w_g is simply the utility of carrying the tag, and every genre "
+         "Left as plain 0/1, $w_g$ is simply the utility of carrying the tag, and every genre "
          "is shrunk equally."])],
      advice="It is also what lets the profile bars at the end be compared with one another.",
      related=["feature-vector", "prior"])
@@ -338,7 +338,8 @@ _add(slug="fisher", title="How much a task is worth", group="Fitting",
      sections=[("The quantity", [
          "Fisher information measures how much an observation constrains a parameter. For a "
          "softmax choice over a set S with probabilities p_s,",
-         Math("I = Σ_{s∈S} p_s x_s x_sᵀ  −  x̄ x̄ᵀ,   x̄ = Σ_s p_s x_s"),
+         Math("I = Σ_{s∈S} p_s x_s x_s^⊤  −  x̄ x̄^⊤"),
+         Aside("with $x̄ = Σ_s p_s x_s$, the average feature vector under the choice distribution."),
          "It is the covariance of the features under the choice distribution. A ranking "
          "contributes one such term per stage; a pairwise comparison is the n = 2 case."]),
        ("The naive reading, and why it misleads", [
