@@ -128,7 +128,7 @@ tree sits at \file{\textasciitilde/Documents/TUHH/SoSe2026/HCAI/}:
 \file{HCAI-PBL/}   & The Django repository. Fork of \file{ppaamm/HCAI-PBL}; remote is \file{k-styles/HCAI-PBL}. \\
 \file{docs/}       & Course overview and the project briefs. \\
 \file{lectures/}   & The twelve lecture PDFs and the demo notebooks. \\
-\file{data/}       & \file{iris.csv} and \file{diabetes.csv}, used during development. \\
+\file{data/}       & \file{iris.csv} and \file{penguins.csv}, used during development. \\
 \file{report/}     & The source of this document. \\
 \file{.venv/}      & Python environment. \\
 \bottomrule
@@ -182,8 +182,8 @@ marks --- decide \emph{what the user should be in control of and what should be
 done automatically}.
 
 That last question is not decoration. Lecture~1 works through a ridge regression
-on the diabetes dataset, chooses the penalty, reports the error, and closes the
-slide with ``Conclusion: no human needed!'' --- immediately followed by a slide
+end to end, chooses the penalty, reports the error, and closes the slide with
+``Conclusion: no human needed!'' --- immediately followed by a slide
 titled ``Bringing the human back in the loop'', which lists the choices that were
 silently made by a person at every step: who collected the data, who picked the
 model, who picked the evaluation criterion, who will use the result. The project
@@ -447,8 +447,9 @@ inside the training rows. The test rows are used once, after the choice is fixed
 for a single final fit and evaluation. Lecture~1's demonstration selects the
 penalty on the test set and then quotes that same test error as the result; the
 number that comes out of that procedure has already been optimised against. The
-distinction is small on the diabetes data and large in principle, and it is
-stated on the training page so the user knows which of the two they are reading.
+distinction is small on the datasets used here --- a little under 1{,}100 units of
+MSE on the body-mass sweep --- and large in principle, and it is stated on the
+training page so the user knows which of the two they are reading.
 
 \subsection{Models, hyperparameters and scores}
 
@@ -622,11 +623,13 @@ fitted on. Where the two separate, the model is memorising rather than learning.
 \label{fig:iris-sweep}
 \end{figure}
 
-\paragraph{Diabetes, ridge regression, mean squared error.} Here the rule
-actually overrules the peak. The best mean sits at $\alpha=1$, but $\alpha=100$
-lies within one standard error of it, and the far more strongly penalised model is
-kept. On the held-out rows it scores marginally \emph{better} --- 2889.2 against
-2893.8 --- which is luck rather than proof, but it is not the trade going wrong.
+\paragraph{Penguin body mass, ridge regression, mean squared error.} A
+regression problem, and the case where the rule actually overrules the peak.
+Predicting body mass in grams from bill length, bill depth and flipper length,
+the best mean sits at $\alpha=1$, but $\alpha=10$ lies within one standard error
+of it, and the more strongly penalised model is the one kept. On the held-out
+rows it scores \emph{better} --- 145{,}559 against 146{,}617 --- which is luck
+rather than proof, but it is emphatically not the trade going wrong.
 
 \begin{table}[H]
 \centering
@@ -635,31 +638,34 @@ kept. On the held-out rows it scores marginally \emph{better} --- 2889.2 against
 \toprule
 $\boldsymbol{\alpha}$ & \textbf{CV MSE} & \textbf{$\pm$ SE} & \textbf{On training rows} & \\
 \midrule
-0.001 & 3026.80 & 183.48 & 2840.24 & tied \\
-0.01  & 3026.73 & 183.56 & 2840.24 & tied \\
-0.1   & 3026.12 & 184.26 & 2840.29 & tied \\
-1     & 3024.18 & 188.70 & 2842.79 & best mean \\
-10    & 3024.72 & 194.38 & 2861.22 & tied \\
-100   & 3082.98 & 198.44 & 2981.10 & \textbf{kept} \\
-1000  & 4150.11 & 167.53 & 4107.01 & \\
+0.001 & 165{,}102.9 & 15{,}754.9 & 154{,}196.4 & tied \\
+0.01  & 165{,}101.0 & 15{,}754.3 & 154{,}196.4 & tied \\
+0.1   & 165{,}082.9 & 15{,}747.8 & 154{,}196.7 & tied \\
+1     & 164{,}935.1 & 15{,}692.5 & 154{,}228.6 & best mean \\
+10    & 165{,}846.9 & 15{,}696.7 & 156{,}552.1 & \textbf{kept} \\
+100   & 208{,}257.0 & 18{,}379.0 & 202{,}886.7 & \\
+1000  & 433{,}894.0 & 20{,}785.4 & 427{,}921.4 & \\
 \bottomrule
 \end{tabular}
-\caption{Five-fold sweep over the ridge penalty on the diabetes data. The final
-test MSE of 2889.2 sits alongside lecture~1's reported 2856 for the same dataset
-and model --- close enough to treat the pipeline as validated against a known
-result, and different enough to be explained by the split and by the fact that the
-lecture selects its penalty on the test set.}
-\label{tab:diabetes}
+\caption{Five-fold sweep over the ridge penalty, predicting penguin body mass
+from three body measurements. 256 training rows, 86 held back. The standard
+error is around 15{,}700 throughout, which swamps the 912-unit gap between the
+best mean and the value actually kept --- so the two are not distinguishable on
+this sample, and the rule is entitled to prefer the plainer one. Note also how
+little the first four rows differ: across three orders of magnitude of $\alpha$
+the fit barely moves.}
+\label{tab:penguin-mass}
 \end{table}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.82\textwidth]{figures/diabetes-sweep.png}
-\caption{Ridge on the diabetes data, scored by $R^2$. The curve is almost flat
-across four orders of magnitude of $\alpha$ before it collapses --- which is the
-honest shape of this problem, and is invisible if a grid search returns only its
-argmax.}
-\label{fig:diabetes-sweep}
+\includegraphics[width=0.82\textwidth]{figures/penguin-mass-sweep.png}
+\caption{The same sweep scored by $R^2$. The curve is almost flat across four
+orders of magnitude of $\alpha$ before it collapses, which is the honest shape
+of this problem and is invisible if a grid search returns only its argmax. The
+dashed line is the score on the rows each model was fitted on; the gap between
+the two is small here, which is what a well-conditioned regression looks like.}
+\label{fig:penguin-mass-sweep}
 \end{figure}
 
 \subsection{Verification}
